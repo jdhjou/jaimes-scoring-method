@@ -2,14 +2,21 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
+const PUBLIC_ORIGIN = "https://jaimeherrera.co";
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next") ?? "/";
+
+  const nextParam = url.searchParams.get("next");
+  const nextSafe =
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
+      ? nextParam
+      : "/";
 
   if (!code) {
     return NextResponse.redirect(
-      new URL("/login?error=missing_code", url.origin)
+      new URL("/login?error=missing_code", PUBLIC_ORIGIN)
     );
   }
 
@@ -36,9 +43,9 @@ export async function GET(request: Request) {
 
   if (error) {
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error.message)}`, url.origin)
+      new URL(`/login?error=${encodeURIComponent(error.message)}`, PUBLIC_ORIGIN)
     );
   }
 
-  return NextResponse.redirect(new URL(next, url.origin));
+  return NextResponse.redirect(new URL(nextSafe, PUBLIC_ORIGIN));
 }

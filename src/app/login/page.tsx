@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { supabase, supabaseInitError } from "@/lib/storage/supabaseClient";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
-  const [err, setErr] = useState<string | null>(supabaseInitError);
+  const [err, setErr] = useState<string | null>(null);
 
   const validEmail = useMemo(
     () => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
@@ -18,11 +18,6 @@ export default function LoginPage() {
   async function sendLink() {
     setErr(null);
 
-    if (supabaseInitError || !supabase) {
-      setErr(supabaseInitError ?? "Supabase client not initialized.");
-      return;
-    }
-
     const e = email.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) {
       setErr("Enter a valid email address.");
@@ -30,19 +25,27 @@ export default function LoginPage() {
     }
 
     setSending(true);
-    const { error } = await supabase.auth.signInWithOtp({
-      email: e,
-      options: {emailRedirectTo: "https://jaimeherrera.co/auth/callback" },
-    });
-    setSending(false);
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithOtp({
+        email: e,
+        options: { emailRedirectTo: "https://jaimeherrera.co/auth/callback" },
+      });
 
-    if (error) setErr(error.message);
-    else setSent(true);
+      if (error) {
+        setErr(error.message);
+      } else {
+        setSent(true);
+      }
+    } catch (ex: any) {
+      setErr(ex?.message ?? "Failed to send magic link.");
+    } finally {
+      setSending(false);
+    }
   }
 
   return (
     <main className="min-h-[100dvh] bg-gradient-to-b from-zinc-50 to-white dark:from-zinc-950 dark:to-zinc-950">
-      {/* soft background accents */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-24 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-zinc-200/60 blur-3xl dark:bg-zinc-800/60" />
         <div className="absolute bottom-[-6rem] right-[-6rem] h-96 w-96 rounded-full bg-zinc-200/40 blur-3xl dark:bg-zinc-800/40" />
@@ -89,7 +92,7 @@ export default function LoginPage() {
                 Email
                 <input
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(ev) => setEmail(ev.target.value)}
                   placeholder="you@example.com"
                   type="email"
                   autoComplete="email"
@@ -99,7 +102,7 @@ export default function LoginPage() {
 
               <button
                 onClick={sendLink}
-                disabled={!validEmail || !!supabaseInitError || sending}
+                disabled={!validEmail || sending}
                 className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 active:scale-[0.99] dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
               >
                 {sending ? "Sending link…" : "Email me a magic link"}
