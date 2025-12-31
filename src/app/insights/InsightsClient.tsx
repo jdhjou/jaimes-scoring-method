@@ -6,31 +6,35 @@ import Link from "next/link";
 import { useSession } from "@/lib/storage/useSession";
 import { supabase, supabaseInitError } from "@/lib/storage/supabaseClient";
 
-type RoundRow = {
+import type { Level, RoundState, Weights } from "@/lib/domain/types";
+import { makeDefaultHoles } from "@/lib/domain/templates";
+import { computeRoundSummary } from "@/lib/domain/scoring";
+
+type RoundMeta = {
   id: string;
-  level: string | null;
+  course_id: string | null;
   holes_count: number | null;
+  level: string | null;
+  scoring_distance: number | null;
+  weights: any | null;
   completed: boolean;
   completed_at: string | null;
   finished_at: string | null;
   started_at: string | null;
 };
 
-type SummaryRow = {
+type HoleRow = {
   round_id: string;
-  strokes?: number | null;
-  to_par?: number | null;
-  sd_pct?: number | null;
-  p3_pct?: number | null;
-  putts_lost_total?: number | null;
-  strokes_lost_total?: number | null;
+  hole_no: number;
+  par: number | null;
+  stroke_index: number | null;
+  strokes: number | null;
+  putts: number | null;
+  reached_sd: boolean | null;
+  oopsies: any | null;
 };
 
-type MetricKey =
-  | "strokes_lost_total"
-  | "to_par"
-  | "putts_lost_total"
-  | "sd_pct";
+type MetricKey = "strokesLostTotal" | "toPar" | "puttsLostTotal" | "sdPct" | "p3Pct" | "strokes";
 
 const METRICS: Array<{
   key: MetricKey;
@@ -38,18 +42,19 @@ const METRICS: Array<{
   subtitle: string;
   better: "down" | "up";
 }> = [
-  { key: "strokes_lost_total", title: "Strokes lost", subtitle: "Lower is better", better: "down" },
-  { key: "to_par", title: "To Par", subtitle: "Lower is better", better: "down" },
-  { key: "putts_lost_total", title: "Putts lost", subtitle: "Lower is better", better: "down" },
-  { key: "sd_pct", title: "SD%", subtitle: "Higher is better", better: "up" },
+  { key: "strokesLostTotal", title: "Strokes lost", subtitle: "Lower is better", better: "down" },
+  { key: "toPar", title: "To Par", subtitle: "Lower is better", better: "down" },
+  { key: "puttsLostTotal", title: "Putts lost", subtitle: "Lower is better", better: "down" },
+  { key: "sdPct", title: "SD%", subtitle: "Higher is better", better: "up" },
+  { key: "p3Pct", title: "Par-3%", subtitle: "Higher is better", better: "up" },
 ];
 
 export default function InsightsClient() {
   const { session, loading, error } = useSession();
 
-  const [rounds, setRounds] = useState<RoundRow[]>([]);
-  const [summaries, setSummaries] = useState<Map<string, SummaryRow>>(new Map());
   const [msg, setMsg] = useState("");
+  const [rounds, setRounds] = useState<RoundMeta[]>([]);
+  const [holesByRound, setHolesByRound] = useState<Map<string, HoleRow[]>>(new Map());
 
   const [levelFilter, setLevelFilter] = useState<"All" | "Bogey Golf" | "Break 80" | "Scratch">("All");
   const [rolling, setRolling] = useState<0 | 3 | 5 | 10>(5);
@@ -64,12 +69,12 @@ export default function InsightsClient() {
     (async () => {
       try {
         if (!supabase) throw new Error("Supabase client not initialized.");
-        setMsg("Loading insights…");
+        setMsg("Loading finished rounds…");
 
-        // 1) Finished rounds
+        // 1) finished rounds metadata (oldest -> newest so trend lines go left->right)
         const { data: r, error: rErr } = await supabase
           .from("rounds")
-          .select("id, level, holes_count, completed, completed_at, finished_at, started_at")
+          .select("id, course_id, holes_count, level, scoring_distance, weights, completed, completed_at, finished_at, started_at")
           .eq("created_by", session.user.id)
           .eq("completed", true)
           .order("completed_at", { ascending: true });
@@ -77,34 +82,37 @@ export default function InsightsClient() {
         if (rErr) throw rErr;
         if (cancelled) return;
 
-        const list = (r ?? []) as RoundRow[];
+        const list = (r ?? []) as RoundMeta[];
         setRounds(list);
 
         const ids = list.map((x) => x.id);
         if (!ids.length) {
-          setSummaries(new Map());
+          setHolesByRound(new Map());
           setMsg("No finished rounds yet.");
           return;
         }
 
-        // 2) Summaries for those rounds
-        const { data: s, error: sErr } = await supabase
-          .from("round_summaries")
-          .select("round_id, strokes, to_par, sd_pct, p3_pct, putts_lost_total, strokes_lost_total")
-          .in("round_id", ids);
+        setMsg("Loading holes…");
 
-        if (sErr) {
-          // Don’t hard fail — insights can still show “no summary data”
-          setSummaries(new Map());
-          setMsg("Loaded rounds (no summaries).");
-          return;
-        }
+        // 2) all holes for those rounds (single query)
+        const { data: h, error: hErr } = await supabase
+          .from("round_holes")
+          .select("round_id, hole_no, par, stroke_index, strokes, putts, reached_sd, oopsies")
+          .in("round_id", ids)
+          .order("round_id", { ascending: true })
+          .order("hole_no", { ascending: true });
 
-        const map = new Map<string, SummaryRow>();
-        for (const row of (s ?? []) as SummaryRow[]) map.set(row.round_id, row);
+        if (hErr) throw hErr;
         if (cancelled) return;
 
-        setSummaries(map);
+        const map = new Map<string, HoleRow[]>();
+        for (const row of (h ?? []) as HoleRow[]) {
+          const arr = map.get(row.round_id) ?? [];
+          arr.push(row);
+          map.set(row.round_id, arr);
+        }
+
+        setHolesByRound(map);
         setMsg("Synced");
       } catch (e: any) {
         if (!cancelled) setMsg(`Insights error: ${e?.message ?? String(e)}`);
@@ -116,37 +124,83 @@ export default function InsightsClient() {
     };
   }, [loading, error, session?.user?.id]);
 
-  const filtered = useMemo(() => {
+  const points = useMemo(() => {
+    // Build a computed “point” per round using computeRoundSummary()
     const list = rounds
-      .map((r) => ({ r, s: summaries.get(r.id) }))
-      .filter((x) => !!x.s); // require summaries for trend lines
+      .map((rm) => {
+        const rows = holesByRound.get(rm.id) ?? [];
+        const holesCount = (rm.holes_count === 9 ? 9 : 18) as 9 | 18;
 
-    if (levelFilter === "All") return list;
-    return list.filter((x) => (x.r.level ?? "") === levelFilter);
-  }, [rounds, summaries, levelFilter]);
+        // Rehydrate RoundState
+        const holes = makeDefaultHoles(holesCount);
+
+        for (const row of rows) {
+          const idx = (row.hole_no ?? 0) - 1;
+          if (idx < 0 || idx >= holes.length) continue;
+
+          holes[idx] = {
+            ...holes[idx],
+            par: (row.par as any) ?? holes[idx].par,
+            strokeIndex: (row.stroke_index as any) ?? holes[idx].strokeIndex,
+            strokes: row.strokes ?? undefined,
+            putts: row.putts ?? undefined,
+            reachedSD: row.reached_sd ?? undefined,
+            oopsies: (row.oopsies as any) ?? holes[idx].oopsies,
+          };
+        }
+
+        const level = (rm.level as Level) ?? "Bogey Golf";
+        const weights = (rm.weights as Weights) ?? { bunker: 1, duffed: 1 };
+
+        const round: RoundState = {
+          holesCount,
+          level,
+          scoringDistance: rm.scoring_distance ?? 125,
+          weights,
+          holes,
+        };
+
+        const summary = computeRoundSummary(round);
+
+        const date = rm.completed_at ?? rm.finished_at ?? rm.started_at ?? null;
+
+        return {
+          id: rm.id,
+          level,
+          holesCount,
+          date,
+          summary,
+        };
+      })
+      // require at least something computed (if no holes existed, summary will be mostly empty)
+      .filter((x) => x.summary != null);
+
+    return levelFilter === "All" ? list : list.filter((x) => x.level === levelFilter);
+  }, [rounds, holesByRound, levelFilter]);
 
   const seriesByMetric = useMemo(() => {
     const out: Record<MetricKey, number[]> = {
-      strokes_lost_total: [],
-      to_par: [],
-      putts_lost_total: [],
-      sd_pct: [],
+      strokesLostTotal: [],
+      toPar: [],
+      puttsLostTotal: [],
+      sdPct: [],
+      p3Pct: [],
+      strokes: [],
     };
 
-    for (const { s } of filtered) {
-      out.strokes_lost_total.push(numOrNaN(s?.strokes_lost_total));
-      out.to_par.push(numOrNaN(s?.to_par));
-      out.putts_lost_total.push(numOrNaN(s?.putts_lost_total));
-      out.sd_pct.push(numOrNaN(s?.sd_pct));
+    for (const p of points) {
+      const s = p.summary as any;
+      // Keep only finite values so the sparkline doesn’t explode
+      pushIfFinite(out.strokesLostTotal, s.strokesLostTotal);
+      pushIfFinite(out.toPar, s.toPar);
+      pushIfFinite(out.puttsLostTotal, s.puttsLostTotal);
+      pushIfFinite(out.sdPct, s.sdPct);
+      pushIfFinite(out.p3Pct, s.p3Pct);
+      pushIfFinite(out.strokes, s.strokes);
     }
 
-    // drop NaNs (keep alignment by filtering per metric)
-    (Object.keys(out) as MetricKey[]).forEach((k) => {
-      out[k] = out[k].filter((v) => Number.isFinite(v));
-    });
-
     return out;
-  }, [filtered]);
+  }, [points]);
 
   // gates
   if (loading) return <div style={{ padding: 24 }}>Loading…</div>;
@@ -221,16 +275,16 @@ export default function InsightsClient() {
             </label>
 
             <div style={{ fontSize: 12, opacity: 0.85 }}>
-              Using <b>{filtered.length}</b> rounds with summaries.
+              Using <b>{points.length}</b> rounds.
             </div>
           </div>
         </div>
 
-        {filtered.length === 0 ? (
+        {points.length === 0 ? (
           <div style={styles.card}>
-            <div style={{ fontWeight: 900, marginBottom: 6 }}>No data to chart yet.</div>
+            <div style={{ fontWeight: 900, marginBottom: 6 }}>No chartable data yet.</div>
             <div style={{ opacity: 0.85, fontSize: 13 }}>
-              Finish a round so it lands in History, and make sure <code>round_summaries</code> is being populated.
+              Finish a round and make sure it has rows in <code>round_holes</code>.
             </div>
           </div>
         ) : (
@@ -248,7 +302,12 @@ export default function InsightsClient() {
                       <div style={styles.metricTitle}>{m.title}</div>
                       <div style={styles.metricSub}>{m.subtitle}</div>
                     </div>
-                    <div style={{ ...styles.badge, ...(dir === "up" ? styles.badgeUp : dir === "down" ? styles.badgeDown : styles.badgeFlat) }}>
+                    <div
+                      style={{
+                        ...styles.badge,
+                        ...(dir === "up" ? styles.badgeUp : dir === "down" ? styles.badgeDown : styles.badgeFlat),
+                      }}
+                    >
                       {dir === "up" ? "Improving" : dir === "down" ? "Worse" : "Flat"}
                     </div>
                   </div>
@@ -272,12 +331,30 @@ export default function InsightsClient() {
                     </div>
                   </div>
 
-                  <div style={styles.note}>
-                    {rolling ? `Showing ${rolling}-round rolling average.` : "Showing raw values."}
-                  </div>
+                  <div style={styles.note}>{rolling ? `Showing ${rolling}-round rolling average.` : "Showing raw values."}</div>
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {points.length > 0 && (
+          <div style={styles.card}>
+            <h2 style={styles.h2}>Quick jump</h2>
+            <div style={styles.list}>
+              {points
+                .slice()
+                .reverse()
+                .slice(0, 12)
+                .map((p) => (
+                  <div key={p.id} style={styles.item}>
+                    <Link href={`/?round=${p.id}`} style={{ ...styles.link, textDecoration: "none" }}>
+                      {p.id.slice(0, 8)}… • {p.level} • {p.holesCount} holes
+                    </Link>
+                    <div style={styles.subline}>{fmtDate(p.date)}</div>
+                  </div>
+                ))}
+            </div>
           </div>
         )}
       </div>
@@ -285,11 +362,12 @@ export default function InsightsClient() {
   );
 }
 
-// ---------- helpers ----------
-function numOrNaN(v: any): number {
+// ---- helpers
+function pushIfFinite(arr: number[], v: any) {
   const n = Number(v);
-  return Number.isFinite(n) ? n : Number.NaN;
+  if (Number.isFinite(n)) arr.push(n);
 }
+
 function last(arr: number[]) {
   return arr.length ? arr[arr.length - 1] : null;
 }
@@ -319,10 +397,8 @@ function rollingAvg(arr: number[], window: number) {
   return out;
 }
 function linearSlope(y: number[]) {
-  // least squares slope (x = 0..n-1). Returns 0 if insufficient points.
   const n = y.length;
   if (n < 2) return 0;
-
   let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
   for (let i = 0; i < n; i++) {
     sumX += i;
@@ -335,40 +411,42 @@ function linearSlope(y: number[]) {
   return (n * sumXY - sumX * sumY) / denom;
 }
 function slopeDirection(better: "down" | "up", slope: number): "up" | "down" | "flat" {
-  // deadband so tiny noise doesn't flip direction
   const eps = 0.02;
   if (Math.abs(slope) < eps) return "flat";
-
-  // For "down is better", negative slope = improving
   if (better === "down") return slope < 0 ? "up" : "down";
-
-  // For "up is better", positive slope = improving
   return slope > 0 ? "up" : "down";
 }
+
 function fmtValue(key: MetricKey, v: number | null) {
   if (v == null || !Number.isFinite(v)) return "—";
-  if (key === "sd_pct") return `${Math.round(v)}%`;
-  if (key === "to_par") return v > 0 ? `+${Math.round(v)}` : `${Math.round(v)}`;
-  return `${Math.round(v)}`;
+  const n = Math.round(v);
+  if (key === "sdPct" || key === "p3Pct") return `${n}%`;
+  if (key === "toPar") return n > 0 ? `+${n}` : `${n}`;
+  return `${n}`;
 }
 function fmtDelta(key: MetricKey, v: number | null) {
   if (v == null || !Number.isFinite(v)) return "—";
   const n = Math.round(v);
-  if (key === "sd_pct") return `${n > 0 ? "+" : ""}${n}%`;
-  if (key === "to_par") return `${n > 0 ? "+" : ""}${n}`;
+  if (key === "sdPct" || key === "p3Pct") return `${n > 0 ? "+" : ""}${n}%`;
+  if (key === "toPar") return `${n > 0 ? "+" : ""}${n}`;
   return `${n > 0 ? "+" : ""}${n}`;
 }
 
-// ---------- tiny sparkline ----------
+function fmtDate(v?: string | null) {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString();
+}
+
+// ---- tiny sparkline
 function Sparkline({ values, height }: { values: number[]; height: number }) {
   const w = 320;
   const h = height;
   const pad = 6;
 
   const clean = values.filter((v) => Number.isFinite(v));
-  if (clean.length < 2) {
-    return <div style={{ opacity: 0.75, fontSize: 12 }}>Not enough data.</div>;
-  }
+  if (clean.length < 2) return <div style={{ opacity: 0.75, fontSize: 12 }}>Not enough data.</div>;
 
   const min = Math.min(...clean);
   const max = Math.max(...clean);
@@ -395,7 +473,10 @@ const styles: Record<string, React.CSSProperties> = {
   nav: { display: "flex", gap: 12, flexWrap: "wrap" },
 
   h1: { margin: 0, fontSize: 26, fontWeight: 900 },
+  h2: { margin: "0 0 10px", fontSize: 16, fontWeight: 900 },
+
   link: { color: "#9ecbff", textDecoration: "underline", fontWeight: 900 },
+  subline: { fontSize: 12, opacity: 0.8, marginTop: 6 },
 
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 },
 
@@ -437,6 +518,14 @@ const styles: Record<string, React.CSSProperties> = {
   badgeUp: { background: "rgba(46, 204, 113, 0.18)" },
   badgeDown: { background: "rgba(231, 76, 60, 0.18)" },
   badgeFlat: { background: "rgba(255,255,255,0.08)" },
+
+  list: { display: "flex", flexDirection: "column", gap: 10 },
+  item: {
+    border: "1px solid rgba(255,255,255,0.10)",
+    borderRadius: 10,
+    padding: 10,
+    background: "rgba(0,0,0,0.15)",
+  },
 
   note: { marginTop: 10, fontSize: 12, opacity: 0.8, lineHeight: 1.35 },
   pre: { whiteSpace: "pre-wrap", background: "#111", color: "#fff", padding: 12, borderRadius: 8, margin: 0 },
