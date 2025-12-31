@@ -84,14 +84,17 @@ export default function LeaderboardPage() {
     return () => { cancelled = true; };
   }, [mode, metric, level, windowN]);
 
-  function fmtValue(v: any) {
-    if (v == null) return "—";
-    const num = Number(v);
-    const adjusted = metricMeta.displayDiv ? (num / metricMeta.displayDiv) : num;
-    // Lost balls should be integer-ish; others keep 1 decimal
-    if (metricMeta.key === "lost_ball_penalty") return `${Math.round(adjusted)}`;
-    return adjusted.toFixed(1);
+function fmtValue(v: any) {
+  if (v == null) return "—";
+  const num = Number(v);
+
+  // lost_ball_penalty is in strokes (2 per lost ball)
+  if (metricMeta.key === "lost_ball_penalty") {
+    return `${Math.round(num / 2)}`;
   }
+
+  return num.toFixed(1);
+}
 
   return (
     <main className="min-h-[100dvh] bg-[#0b1220] text-[#e6e8ee] p-6">
