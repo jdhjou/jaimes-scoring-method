@@ -112,36 +112,42 @@ const roundParam = searchParams.get("round");
 
       // 👉 Otherwise load latest round (existing behavior)
       const latest = await fetchLatestRound();
-      if (latest) {
-        setRound(latest.round);
-        setRoundId(latest.roundId);
-        setCourseId(latest.courseId);
+if (latest) {
+  if (!supabase) throw new Error("Supabase client not initialized.");
 
-        if (!supabase) throw new Error("Supabase client not initialized.");
-        const { data } = await supabase
-          .from("rounds")
-          .select("completed")
-          .eq("id", latest.roundId)
-          .single();
+  const { data, error } = await supabase
+    .from("rounds")
+    .select("completed")
+    .eq("id", latest.roundId)
+    .single();
 
-        setIsCompleted(!!data?.completed);
-      } else {
-        const base = defaultRound(18);
-        const id = await createRound(base, null);
-        setRound(base);
-        setRoundId(id);
-        setCourseId(null);
-        setIsCompleted(false);
-      }
+  if (error) throw error;
 
-      hydrated.current = true;
-      setSyncMsg("Synced");
-    } catch (e: any) {
-      setSyncMsg(`DB error: ${e?.message ?? String(e)}`);
-    }
-  })();
-}, [session?.user?.id, roundParam]);
+  const completed = !!data?.completed;
 
+  // ✅ If latest is finished, automatically start a fresh round (keep course)
+  if (completed) {
+    const next = resetRoundKeepCourse(latest.round);
+    const id = await createRound(next, latest.courseId ?? null);
+    setRound(next);
+    setRoundId(id);
+    setCourseId(latest.courseId ?? null);
+    setIsCompleted(false);
+    setSyncMsg("Started new round");
+  } else {
+    setRound(latest.round);
+    setRoundId(latest.roundId);
+    setCourseId(latest.courseId);
+    setIsCompleted(false);
+  }
+} else {
+  const base = defaultRound(18);
+  const id = await createRound(base, null);
+  setRound(base);
+  setRoundId(id);
+  setCourseId(null);
+  setIsCompleted(false);
+}
   // Autosave to DB (debounced)
   useEffect(() => {
     if (!session?.user?.id) return;
