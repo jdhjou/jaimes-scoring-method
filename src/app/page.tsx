@@ -22,9 +22,13 @@ import {
   createTemplateFromRound,
   deleteTemplate,
   fetchLatestRound,
+  fetchRoundById,
   fetchTemplates,
   upsertRound,
 } from "@/lib/storage/remoteSupabase";
+
+import { useSearchParams } from "next/navigation";
+
 
 // Added Goal column after SI
 const COLS = "34px 70px 70px 70px 90px 80px 260px 120px 1fr";
@@ -54,6 +58,9 @@ function goalScore(level: Level, par: number, strokeIndex: number): number {
 }
 
 export default function Page() {
+const searchParams = useSearchParams();
+const roundParam = searchParams.get("round");
+
   const { session, loading, error } = useSession();
   const router = useRouter();
 
@@ -75,50 +82,65 @@ export default function Page() {
   const summary = useMemo(() => computeRoundSummary(round), [round]);
 
   // Load templates + latest round once logged in
-  useEffect(() => {
-    if (!session?.user?.id) return;
-    if (loadingFromDb.current) return;
-    if (supabaseInitError) return;
+ useEffect(() => {
+  if (!session?.user?.id) return;
+  if (loadingFromDb.current) return;
+  if (supabaseInitError) return;
 
-    loadingFromDb.current = true;
+  loadingFromDb.current = true;
 
-    (async () => {
-      try {
-        setSyncMsg("Loading from database…");
+  (async () => {
+    try {
+      setSyncMsg("Loading from database…");
 
-        const [t, latest] = await Promise.all([fetchTemplates(), fetchLatestRound()]);
-        setTemplates(t);
+      const t = await fetchTemplates();
+      setTemplates(t);
 
-        if (latest) {
-          setRound(latest.round);
-          setRoundId(latest.roundId);
-          setCourseId(latest.courseId);
-
-          // fetch completion state for this round (null-safe)
-          if (!supabase) throw new Error("Supabase client not initialized.");
-          const { data, error } = await supabase
-            .from("rounds")
-            .select("completed")
-            .eq("id", latest.roundId)
-            .single();
-
-          if (!error && data) setIsCompleted(!!data.completed);
-        } else {
-          const base = defaultRound(18);
-          const id = await createRound(base, null);
-          setRound(base);
-          setRoundId(id);
-          setCourseId(null);
-          setIsCompleted(false);
+      // 👉 If URL specifies a round, load it
+      if (roundParam) {
+        const loaded = await fetchRoundById(roundParam);
+        if (loaded) {
+          setRound(loaded.round);
+          setRoundId(loaded.roundId);
+          setCourseId(loaded.courseId);
+          setIsCompleted(loaded.completed);
+          hydrated.current = true;
+          setSyncMsg("Loaded from history");
+          return;
         }
-
-        hydrated.current = true;
-        setSyncMsg("Synced");
-      } catch (e: any) {
-        setSyncMsg(`DB error: ${e?.message ?? String(e)}`);
       }
-    })();
-  }, [session?.user?.id]);
+
+      // 👉 Otherwise load latest round (existing behavior)
+      const latest = await fetchLatestRound();
+      if (latest) {
+        setRound(latest.round);
+        setRoundId(latest.roundId);
+        setCourseId(latest.courseId);
+
+        if (!supabase) throw new Error("Supabase client not initialized.");
+        const { data } = await supabase
+          .from("rounds")
+          .select("completed")
+          .eq("id", latest.roundId)
+          .single();
+
+        setIsCompleted(!!data?.completed);
+      } else {
+        const base = defaultRound(18);
+        const id = await createRound(base, null);
+        setRound(base);
+        setRoundId(id);
+        setCourseId(null);
+        setIsCompleted(false);
+      }
+
+      hydrated.current = true;
+      setSyncMsg("Synced");
+    } catch (e: any) {
+      setSyncMsg(`DB error: ${e?.message ?? String(e)}`);
+    }
+  })();
+}, [session?.user?.id, roundParam]);
 
   // Autosave to DB (debounced)
   useEffect(() => {

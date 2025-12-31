@@ -1,6 +1,76 @@
 import { getSupabase } from "@/lib/storage/supabaseClient";
 import type { CourseTemplate, RoundState } from "@/lib/domain/types";
 import { computeRoundSummary } from "@/lib/domain/scoring";
+import type { RoundState } from "@/lib/domain/types";
+import { makeDefaultHoles } from "@/lib/domain/templates";
+
+/**
+ * Load a full round (metadata + holes) by round ID
+ */
+export async function fetchRoundById(roundId: string): Promise<{
+  roundId: string;
+  courseId: string | null;
+  completed: boolean;
+  round: RoundState;
+} | null> {
+  if (!supabase) throw new Error("Supabase client not initialized.");
+
+  // 1) round metadata
+  const { data: r, error: rErr } = await supabase
+    .from("rounds")
+    .select("id, course_id, holes_count, level, scoring_distance, weights, completed")
+    .eq("id", roundId)
+    .single();
+
+  if (rErr) throw rErr;
+  if (!r) return null;
+
+  const holesCount = (r.holes_count === 9 ? 9 : 18) as 9 | 18;
+
+  // 2) holes
+  const { data: holesRows, error: hErr } = await supabase
+    .from("round_holes")
+    .select("hole_no, par, stroke_index, strokes, putts, reached_sd, oopsies")
+    .eq("round_id", roundId)
+    .order("hole_no", { ascending: true });
+
+  if (hErr) throw hErr;
+
+  // Build a safe default array first
+  const holes = makeDefaultHoles(holesCount);
+
+  // Map DB rows into holes array
+  for (const row of holesRows ?? []) {
+    const idx = (row.hole_no ?? 0) - 1;
+    if (idx < 0 || idx >= holes.length) continue;
+
+    holes[idx] = {
+      ...holes[idx],
+      par: row.par ?? holes[idx].par,
+      strokeIndex: row.stroke_index ?? holes[idx].strokeIndex,
+      strokes: row.strokes ?? undefined,
+      putts: row.putts ?? undefined,
+      reachedSD: row.reached_sd ?? undefined,
+      oopsies: (row.oopsies as any) ?? holes[idx].oopsies,
+    };
+  }
+
+  const round: RoundState = {
+    holesCount,
+    level: (r.level as Level) ?? "Bogey Golf",
+    scoringDistance: r.scoring_distance ?? 125,
+    weights: (r.weights as any) ?? { bunker: 1, duffed: 1 },
+    holes,
+  };
+
+  return {
+    roundId: r.id,
+    courseId: r.course_id ?? null,
+    completed: !!r.completed,
+    round,
+  };
+}
+
 
 
 function lostBallPenaltyTotal(round: RoundState): number {
