@@ -8,7 +8,9 @@ export async function GET(request: Request) {
   const next = url.searchParams.get("next") ?? "/";
 
   if (!code) {
-    return NextResponse.redirect(new URL("/login?error=missing_code", url.origin));
+    return NextResponse.redirect(
+      new URL("/login?error=missing_code", url.origin)
+    );
   }
 
   const cookieStore = await cookies();
