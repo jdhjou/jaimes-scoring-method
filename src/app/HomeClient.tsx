@@ -353,6 +353,7 @@ const roundParam = searchParams.get("round");
             <Link href="/" style={styles.navLink}>Home</Link>
             <Link href="/history" style={styles.navLink}>History</Link>
             <Link href="/insights" style={styles.navLink}>Insights</Link>
+            <Link className="underline" href="/leaderboard">Leaderboard</Link>
             <button style={styles.navBtn} onClick={newRoundKeepCourse} title="Start a new round">
               New round
             </button>
