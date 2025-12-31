@@ -12,11 +12,11 @@ export async function fetchRoundById(roundId: string): Promise<{
   completed: boolean;
   round: RoundState;
 } | null> {
-  if (!supabase) throw new Error("Supabase client not initialized.");
+   const sb = getSupabase();
+  if (!sb) throw new Error("Supabase client not initialized.");
 
   // 1) round metadata
-  const { data: r, error: rErr } = await supabase
-    .from("rounds")
+  const { data: r, error: rErr } = await sb    .from("rounds")
     .select("id, course_id, holes_count, level, scoring_distance, weights, completed")
     .eq("id", roundId)
     .single();
@@ -27,7 +27,7 @@ export async function fetchRoundById(roundId: string): Promise<{
   const holesCount = (r.holes_count === 9 ? 9 : 18) as 9 | 18;
 
   // 2) holes
-  const { data: holesRows, error: hErr } = await supabase
+  const { data: holesRows, error: hErr } = await sb
     .from("round_holes")
     .select("hole_no, par, stroke_index, strokes, putts, reached_sd, oopsies")
     .eq("round_id", roundId)
