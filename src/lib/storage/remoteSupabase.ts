@@ -1,7 +1,6 @@
 import { getSupabase } from "@/lib/storage/supabaseClient";
 import type { CourseTemplate, RoundState } from "@/lib/domain/types";
 import { computeRoundSummary } from "@/lib/domain/scoring";
-import type { RoundState } from "@/lib/domain/types";
 import { makeDefaultHoles } from "@/lib/domain/templates";
 
 /**
