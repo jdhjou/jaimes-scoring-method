@@ -31,10 +31,17 @@ type HoleRow = {
   strokes: number | null;
   putts: number | null;
   reached_sd: boolean | null;
-  oopsies: any | null;
+  oopsies: any | null; // expects { lostBall: number, bunker: number, duffed: number }
 };
 
-type MetricKey = "strokesLostTotal" | "toPar" | "puttsLostTotal" | "sdPct" | "p3Pct" | "strokes";
+type MetricKey =
+  | "strokesLostTotal"
+  | "toPar"
+  | "puttsLostTotal"
+  | "sdPct"
+  | "p3Pct"
+  | "lostBalls"
+  | "duffedShots";
 
 const METRICS: Array<{
   key: MetricKey;
@@ -47,6 +54,8 @@ const METRICS: Array<{
   { key: "puttsLostTotal", title: "Putts lost", subtitle: "Lower is better", better: "down" },
   { key: "sdPct", title: "SD%", subtitle: "Higher is better", better: "up" },
   { key: "p3Pct", title: "Par-3%", subtitle: "Higher is better", better: "up" },
+  { key: "lostBalls", title: "Lost balls", subtitle: "Lower is better", better: "down" },
+  { key: "duffedShots", title: "Duffed shots", subtitle: "Lower is better", better: "down" },
 ];
 
 export default function InsightsClient() {
@@ -71,7 +80,7 @@ export default function InsightsClient() {
         if (!supabase) throw new Error("Supabase client not initialized.");
         setMsg("Loading finished rounds…");
 
-        // 1) finished rounds metadata (oldest -> newest so trend lines go left->right)
+        // finished rounds metadata (oldest -> newest for trend lines)
         const { data: r, error: rErr } = await supabase
           .from("rounds")
           .select("id, course_id, holes_count, level, scoring_distance, weights, completed, completed_at, finished_at, started_at")
@@ -94,7 +103,7 @@ export default function InsightsClient() {
 
         setMsg("Loading holes…");
 
-        // 2) all holes for those rounds (single query)
+        // all holes for those rounds (single query)
         const { data: h, error: hErr } = await supabase
           .from("round_holes")
           .select("round_id, hole_no, par, stroke_index, strokes, putts, reached_sd, oopsies")
@@ -125,19 +134,20 @@ export default function InsightsClient() {
   }, [loading, error, session?.user?.id]);
 
   const points = useMemo(() => {
-    // Build a computed “point” per round using computeRoundSummary()
-    const list = rounds
-      .map((rm) => {
-        const rows = holesByRound.get(rm.id) ?? [];
-        const holesCount = (rm.holes_count === 9 ? 9 : 18) as 9 | 18;
+    const list = rounds.map((rm) => {
+      const rows = holesByRound.get(rm.id) ?? [];
+      const holesCount = (rm.holes_count === 9 ? 9 : 18) as 9 | 18;
 
-        // Rehydrate RoundState
-        const holes = makeDefaultHoles(holesCount);
+      // Rehydrate RoundState (for computeRoundSummary)
+      const holes = makeDefaultHoles(holesCount);
 
-        for (const row of rows) {
-          const idx = (row.hole_no ?? 0) - 1;
-          if (idx < 0 || idx >= holes.length) continue;
+      // Totals for standalone trends
+      let lostBalls = 0;
+      let duffedShots = 0;
 
+      for (const row of rows) {
+        const idx = (row.hole_no ?? 0) - 1;
+        if (idx >= 0 && idx < holes.length) {
           holes[idx] = {
             ...holes[idx],
             par: (row.par as any) ?? holes[idx].par,
@@ -149,31 +159,35 @@ export default function InsightsClient() {
           };
         }
 
-        const level = (rm.level as Level) ?? "Bogey Golf";
-        const weights = (rm.weights as Weights) ?? { bunker: 1, duffed: 1 };
+        const o = (row.oopsies ?? {}) as any;
+        lostBalls += safeInt(o.lostBall);
+        duffedShots += safeInt(o.duffed);
+      }
 
-        const round: RoundState = {
-          holesCount,
-          level,
-          scoringDistance: rm.scoring_distance ?? 125,
-          weights,
-          holes,
-        };
+      const level = (rm.level as Level) ?? "Bogey Golf";
+      const weights = (rm.weights as Weights) ?? { bunker: 1, duffed: 1 };
 
-        const summary = computeRoundSummary(round);
+      const round: RoundState = {
+        holesCount,
+        level,
+        scoringDistance: rm.scoring_distance ?? 125,
+        weights,
+        holes,
+      };
 
-        const date = rm.completed_at ?? rm.finished_at ?? rm.started_at ?? null;
+      const summary = computeRoundSummary(round);
+      const date = rm.completed_at ?? rm.finished_at ?? rm.started_at ?? null;
 
-        return {
-          id: rm.id,
-          level,
-          holesCount,
-          date,
-          summary,
-        };
-      })
-      // require at least something computed (if no holes existed, summary will be mostly empty)
-      .filter((x) => x.summary != null);
+      return {
+        id: rm.id,
+        level,
+        holesCount,
+        date,
+        summary,
+        lostBalls,
+        duffedShots,
+      };
+    });
 
     return levelFilter === "All" ? list : list.filter((x) => x.level === levelFilter);
   }, [rounds, holesByRound, levelFilter]);
@@ -185,18 +199,22 @@ export default function InsightsClient() {
       puttsLostTotal: [],
       sdPct: [],
       p3Pct: [],
-      strokes: [],
+      lostBalls: [],
+      duffedShots: [],
     };
 
     for (const p of points) {
       const s = p.summary as any;
-      // Keep only finite values so the sparkline doesn’t explode
-      pushIfFinite(out.strokesLostTotal, s.strokesLostTotal);
-      pushIfFinite(out.toPar, s.toPar);
-      pushIfFinite(out.puttsLostTotal, s.puttsLostTotal);
-      pushIfFinite(out.sdPct, s.sdPct);
-      pushIfFinite(out.p3Pct, s.p3Pct);
-      pushIfFinite(out.strokes, s.strokes);
+
+      pushIfFinite(out.strokesLostTotal, s?.strokesLostTotal);
+      pushIfFinite(out.toPar, s?.toPar);
+      pushIfFinite(out.puttsLostTotal, s?.puttsLostTotal);
+      pushIfFinite(out.sdPct, s?.sdPct);
+      pushIfFinite(out.p3Pct, s?.p3Pct);
+
+      // Standalone trends (counts)
+      pushIfFinite(out.lostBalls, p.lostBalls);
+      pushIfFinite(out.duffedShots, p.duffedShots);
     }
 
     return out;
@@ -363,6 +381,12 @@ export default function InsightsClient() {
 }
 
 // ---- helpers
+function safeInt(v: any) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.trunc(n));
+}
+
 function pushIfFinite(arr: number[], v: any) {
   const n = Number(v);
   if (Number.isFinite(n)) arr.push(n);
