@@ -56,7 +56,7 @@ export async function fetchRoundById(roundId: string): Promise<{
 
   const round: RoundState = {
     holesCount,
-    level: (r.level as Level) ?? "Bogey Golf",
+    level: (r.level as any) ?? "Bogey Golf",
     scoringDistance: r.scoring_distance ?? 125,
     weights: (r.weights as any) ?? { bunker: 1, duffed: 1 },
     holes,
