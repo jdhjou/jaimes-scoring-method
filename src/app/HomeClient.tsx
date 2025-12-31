@@ -12,7 +12,11 @@ import {
   puttingLost,
   targetAfterSD,
 } from "@/lib/domain/scoring";
-import { applyTemplateToNewRound, makeDefaultHoles, resetRoundKeepCourse } from "@/lib/domain/templates";
+import {
+  applyTemplateToNewRound,
+  makeDefaultHoles,
+  resetRoundKeepCourse,
+} from "@/lib/domain/templates";
 import { sanitizeName } from "@/lib/utils/sanitize";
 
 import { useSession } from "@/lib/storage/useSession";
@@ -28,7 +32,6 @@ import {
 } from "@/lib/storage/remoteSupabase";
 
 import { useSearchParams } from "next/navigation";
-
 
 // Added Goal column after SI
 const COLS = "34px 70px 70px 70px 90px 80px 260px 120px 1fr";
@@ -58,8 +61,8 @@ function goalScore(level: Level, par: number, strokeIndex: number): number {
 }
 
 export default function Page() {
-const searchParams = useSearchParams();
-const roundParam = searchParams.get("round");
+  const searchParams = useSearchParams();
+  const roundParam = searchParams.get("round");
 
   const { session, loading, error } = useSession();
   const router = useRouter();
@@ -82,72 +85,85 @@ const roundParam = searchParams.get("round");
   const summary = useMemo(() => computeRoundSummary(round), [round]);
 
   // Load templates + latest round once logged in
- useEffect(() => {
-  if (!session?.user?.id) return;
-  if (loadingFromDb.current) return;
-  if (supabaseInitError) return;
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    if (loadingFromDb.current) return;
+    if (supabaseInitError) return;
 
-  loadingFromDb.current = true;
+    loadingFromDb.current = true;
 
-  (async () => {
-    try {
-      setSyncMsg("Loading from database…");
+    (async () => {
+      try {
+        setSyncMsg("Loading from database…");
 
-      const t = await fetchTemplates();
-      setTemplates(t);
+        const t = await fetchTemplates();
+        setTemplates(t);
 
-      // 👉 If URL specifies a round, load it
-      if (roundParam) {
-        const loaded = await fetchRoundById(roundParam);
-        if (loaded) {
-          setRound(loaded.round);
-          setRoundId(loaded.roundId);
-          setCourseId(loaded.courseId);
-          setIsCompleted(loaded.completed);
-          hydrated.current = true;
-          setSyncMsg("Loaded from history");
-          return;
+        // 👉 If URL specifies a round, load it
+        if (roundParam) {
+          const loaded = await fetchRoundById(roundParam);
+          if (loaded) {
+            setRound(loaded.round);
+            setRoundId(loaded.roundId);
+            setCourseId(loaded.courseId);
+            setIsCompleted(loaded.completed);
+            hydrated.current = true;
+            setSyncMsg("Loaded from history");
+            return;
+          }
         }
+
+        // 👉 Otherwise load latest round (existing behavior)
+        const latest = await fetchLatestRound();
+
+        if (latest) {
+          if (!supabase) throw new Error("Supabase client not initialized.");
+
+          const { data, error } = await supabase
+            .from("rounds")
+            .select("completed")
+            .eq("id", latest.roundId)
+            .single();
+
+          if (error) throw error;
+
+          const completed = !!data?.completed;
+
+          // ✅ If latest is finished, automatically start a fresh round (keep course)
+          if (completed) {
+            const next = resetRoundKeepCourse(latest.round);
+            const id = await createRound(next, latest.courseId ?? null);
+            setRound(next);
+            setRoundId(id);
+            setCourseId(latest.courseId ?? null);
+            setIsCompleted(false);
+            setSyncMsg("Started new round");
+          } else {
+            setRound(latest.round);
+            setRoundId(latest.roundId);
+            setCourseId(latest.courseId);
+            setIsCompleted(false);
+          }
+
+          hydrated.current = true;
+        } else {
+          const base = defaultRound(18);
+          const id = await createRound(base, null);
+          setRound(base);
+          setRoundId(id);
+          setCourseId(null);
+          setIsCompleted(false);
+
+          hydrated.current = true;
+        }
+      } catch (e: any) {
+        setSyncMsg(`Load error: ${e?.message ?? String(e)}`);
+      } finally {
+        loadingFromDb.current = false;
       }
+    })();
+  }, [session?.user?.id, roundParam, supabaseInitError]);
 
-      // 👉 Otherwise load latest round (existing behavior)
-      const latest = await fetchLatestRound();
-if (latest) {
-  if (!supabase) throw new Error("Supabase client not initialized.");
-
-  const { data, error } = await supabase
-    .from("rounds")
-    .select("completed")
-    .eq("id", latest.roundId)
-    .single();
-
-  if (error) throw error;
-
-  const completed = !!data?.completed;
-
-  // ✅ If latest is finished, automatically start a fresh round (keep course)
-  if (completed) {
-    const next = resetRoundKeepCourse(latest.round);
-    const id = await createRound(next, latest.courseId ?? null);
-    setRound(next);
-    setRoundId(id);
-    setCourseId(latest.courseId ?? null);
-    setIsCompleted(false);
-    setSyncMsg("Started new round");
-  } else {
-    setRound(latest.round);
-    setRoundId(latest.roundId);
-    setCourseId(latest.courseId);
-    setIsCompleted(false);
-  }
-} else {
-  const base = defaultRound(18);
-  const id = await createRound(base, null);
-  setRound(base);
-  setRoundId(id);
-  setCourseId(null);
-  setIsCompleted(false);
-}
   // Autosave to DB (debounced)
   useEffect(() => {
     if (!session?.user?.id) return;
@@ -171,7 +187,6 @@ if (latest) {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
     };
   }, [session?.user?.id, round, roundId, courseId, isCompleted]);
-
   function setLevel(level: Level) {
     if (isCompleted) return;
     setRound((r) => ({ ...r, level }));
@@ -199,7 +214,10 @@ if (latest) {
     });
   }
 
-  function updateHole(idx: number, patch: Partial<RoundState["holes"][number]>) {
+  function updateHole(
+    idx: number,
+    patch: Partial<RoundState["holes"][number]>,
+  ) {
     if (isCompleted) return;
     setRound((r) => ({
       ...r,
@@ -207,12 +225,16 @@ if (latest) {
     }));
   }
 
-  function updateOops(idx: number, key: "lostBall" | "bunker" | "duffed", v: number) {
+  function updateOops(
+    idx: number,
+    key: "lostBall" | "bunker" | "duffed",
+    v: number,
+  ) {
     if (isCompleted) return;
     setRound((r) => ({
       ...r,
       holes: r.holes.map((h, i) =>
-        i === idx ? { ...h, oopsies: { ...h.oopsies, [key]: v } } : h
+        i === idx ? { ...h, oopsies: { ...h.oopsies, [key]: v } } : h,
       ),
     }));
   }
@@ -290,7 +312,7 @@ if (latest) {
         level: r.level,
         scoringDistance: r.scoringDistance,
         weights: r.weights,
-      })
+      }),
     );
 
     setSelectedTemplateId(id);
@@ -323,9 +345,22 @@ if (latest) {
 
   if (error || supabaseInitError) {
     return (
-      <div style={{ padding: 24, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
+      <div
+        style={{
+          padding: 24,
+          fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        }}
+      >
         <h1>Runtime / config error</h1>
-        <pre style={{ whiteSpace: "pre-wrap", background: "#111", color: "#fff", padding: 12, borderRadius: 8 }}>
+        <pre
+          style={{
+            whiteSpace: "pre-wrap",
+            background: "#111",
+            color: "#fff",
+            padding: 12,
+            borderRadius: 8,
+          }}
+        >
           {String(error ?? supabaseInitError)}
         </pre>
         <p style={{ marginTop: 12 }}>
@@ -356,11 +391,23 @@ if (latest) {
         <nav style={styles.nav}>
           <div style={styles.brand}>Jaime's Scoring Method</div>
           <div style={styles.navLinks}>
-            <Link href="/" style={styles.navLink}>Home</Link>
-            <Link href="/history" style={styles.navLink}>History</Link>
-            <Link href="/insights" style={styles.navLink}>Insights</Link>
-            <Link className="underline" href="/leaderboard">Leaderboard</Link>
-            <button style={styles.navBtn} onClick={newRoundKeepCourse} title="Start a new round">
+            <Link href="/" style={styles.navLink}>
+              Home
+            </Link>
+            <Link href="/history" style={styles.navLink}>
+              History
+            </Link>
+            <Link href="/insights" style={styles.navLink}>
+              Insights
+            </Link>
+            <Link className="underline" href="/leaderboard">
+              Leaderboard
+            </Link>
+            <button
+              style={styles.navBtn}
+              onClick={newRoundKeepCourse}
+              title="Start a new round"
+            >
               New round
             </button>
           </div>
@@ -370,28 +417,49 @@ if (latest) {
           <div>
             <h1 style={styles.h1}>Jaime's Scoring Method</h1>
             <p style={styles.sub}>
-              SD goals are automatic by <b>Level + SI</b>. Lost ball = <b>2 strokes</b>. Putting lost ={" "}
-              <b>max(0, putts−2)</b>.
+              SD goals are automatic by <b>Level + SI</b>. Lost ball ={" "}
+              <b>2 strokes</b>. Putting lost = <b>max(0, putts−2)</b>.
             </p>
 
             <div style={styles.kpis}>
-              <span><b>Strokes:</b> {summary.strokes ?? "—"}</span>
+              <span>
+                <b>Strokes:</b> {summary.strokes ?? "—"}
+              </span>
               <span>
                 <b>To Par:</b>{" "}
-                {summary.toPar == null ? "—" : summary.toPar > 0 ? `+${summary.toPar}` : summary.toPar}
+                {summary.toPar == null
+                  ? "—"
+                  : summary.toPar > 0
+                    ? `+${summary.toPar}`
+                    : summary.toPar}
               </span>
-              <span><b>SD%:</b> {summary.sdPct != null ? `${summary.sdPct}%` : "—"}</span>
-              <span><b>Par-3%:</b> {summary.p3Pct != null ? `${summary.p3Pct}%` : "—"}</span>
-              <span><b>Putts lost:</b> {summary.puttsLostTotal}</span>
-              <span><b>Strokes lost:</b> {summary.strokesLostTotal}</span>
+              <span>
+                <b>SD%:</b> {summary.sdPct != null ? `${summary.sdPct}%` : "—"}
+              </span>
+              <span>
+                <b>Par-3%:</b>{" "}
+                {summary.p3Pct != null ? `${summary.p3Pct}%` : "—"}
+              </span>
+              <span>
+                <b>Putts lost:</b> {summary.puttsLostTotal}
+              </span>
+              <span>
+                <b>Strokes lost:</b> {summary.strokesLostTotal}
+              </span>
             </div>
 
             <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
               Logged in as: <b>{session.user.email}</b> •{" "}
-              <button style={styles.linkBtn} onClick={signOut}>Sign out</button>
-              <span style={{ marginLeft: 10 }}>• <b>{syncMsg}</b></span>
+              <button style={styles.linkBtn} onClick={signOut}>
+                Sign out
+              </button>
+              <span style={{ marginLeft: 10 }}>
+                • <b>{syncMsg}</b>
+              </span>
               {isCompleted && (
-                <span style={{ marginLeft: 10, opacity: 0.9 }}>• <b>Round finished</b></span>
+                <span style={{ marginLeft: 10, opacity: 0.9 }}>
+                  • <b>Round finished</b>
+                </span>
               )}
             </div>
           </div>
@@ -426,7 +494,9 @@ if (latest) {
               style={isCompleted ? styles.btnDisabled : styles.btnPrimary}
               onClick={finishRound}
               disabled={!roundId || isCompleted}
-              title={isCompleted ? "This round is finished" : "Finish this round"}
+              title={
+                isCompleted ? "This round is finished" : "Finish this round"
+              }
             >
               {isCompleted ? "Finished ✓" : "Finish round"}
             </button>
@@ -457,7 +527,9 @@ if (latest) {
 
             <button
               style={styles.btnDanger}
-              onClick={() => selectedTemplateId && removeTemplate(selectedTemplateId)}
+              onClick={() =>
+                selectedTemplateId && removeTemplate(selectedTemplateId)
+              }
               disabled={!selectedTemplateId || isCompleted}
             >
               Delete
@@ -472,13 +544,18 @@ if (latest) {
               onChange={(e) => setTemplateName(e.target.value)}
               disabled={isCompleted}
             />
-            <button style={styles.btn} onClick={saveCurrentTemplate} disabled={isCompleted || !sanitizeName(templateName)}>
+            <button
+              style={styles.btn}
+              onClick={saveCurrentTemplate}
+              disabled={isCompleted || !sanitizeName(templateName)}
+            >
               Save current as template
             </button>
           </div>
 
           <div style={styles.smallNote}>
-            Loading a template sets the round’s <b>course_id</b> and resets strokes/putts/oopsies/SD.
+            Loading a template sets the round’s <b>course_id</b> and resets
+            strokes/putts/oopsies/SD.
           </div>
         </section>
 
@@ -486,9 +563,17 @@ if (latest) {
           <h2 style={styles.h2}>How to use</h2>
           <ol style={styles.ol}>
             <li>Pick a template (or set Par + SI once, then save it).</li>
-            <li>Check <b>Reached SD</b> if you got to scoring distance in ≤ the shown shots for that hole.</li>
-            <li>Select <b>Strokes</b> and <b>Putts</b>.</li>
-            <li>Track <b>Oopsies</b> counts. Lost balls are automatically <b>×2 strokes lost</b>.</li>
+            <li>
+              Check <b>Reached SD</b> if you got to scoring distance in ≤ the
+              shown shots for that hole.
+            </li>
+            <li>
+              Select <b>Strokes</b> and <b>Putts</b>.
+            </li>
+            <li>
+              Track <b>Oopsies</b> counts. Lost balls are automatically{" "}
+              <b>×2 strokes lost</b>.
+            </li>
           </ol>
         </section>
 
@@ -512,12 +597,17 @@ if (latest) {
             const goal = goalScore(round.level, h.par, h.strokeIndex);
 
             return (
-              <div key={h.n} style={{ ...styles.row, gridTemplateColumns: COLS }}>
+              <div
+                key={h.n}
+                style={{ ...styles.row, gridTemplateColumns: COLS }}
+              >
                 <div style={styles.cellNum}>{h.n}</div>
 
                 <select
                   value={h.par}
-                  onChange={(e) => updateHole(i, { par: Number(e.target.value) as 3 | 4 | 5 })}
+                  onChange={(e) =>
+                    updateHole(i, { par: Number(e.target.value) as 3 | 4 | 5 })
+                  }
                   style={styles.selectCell}
                   disabled={isCompleted}
                 >
@@ -528,12 +618,16 @@ if (latest) {
 
                 <select
                   value={h.strokeIndex}
-                  onChange={(e) => updateHole(i, { strokeIndex: Number(e.target.value) })}
+                  onChange={(e) =>
+                    updateHole(i, { strokeIndex: Number(e.target.value) })
+                  }
                   style={styles.selectCell}
                   disabled={isCompleted}
                 >
                   {Array.from({ length: 18 }, (_, n) => (
-                    <option key={n + 1} value={n + 1}>{n + 1}</option>
+                    <option key={n + 1} value={n + 1}>
+                      {n + 1}
+                    </option>
                   ))}
                 </select>
 
@@ -543,34 +637,52 @@ if (latest) {
                     {round.level === "Scratch"
                       ? "Par"
                       : round.level === "Bogey Golf"
-                      ? "Par+1"
-                      : h.strokeIndex >= 10
-                      ? "Par+1"
-                      : "Par"}
+                        ? "Par+1"
+                        : h.strokeIndex >= 10
+                          ? "Par+1"
+                          : "Par"}
                   </div>
                 </div>
 
                 <select
                   value={h.strokes ?? ""}
-                  onChange={(e) => updateHole(i, { strokes: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onChange={(e) =>
+                    updateHole(i, {
+                      strokes:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
                   style={styles.selectCell}
                   disabled={isCompleted}
                 >
                   <option value="">—</option>
                   {Array.from({ length: 21 }, (_, n) => (
-                    <option key={n} value={n}>{n}</option>
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
                   ))}
                 </select>
 
                 <select
                   value={h.putts ?? ""}
-                  onChange={(e) => updateHole(i, { putts: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  onChange={(e) =>
+                    updateHole(i, {
+                      putts:
+                        e.target.value === ""
+                          ? undefined
+                          : Number(e.target.value),
+                    })
+                  }
                   style={styles.selectCell}
                   disabled={isCompleted}
                 >
                   <option value="">—</option>
                   {Array.from({ length: 11 }, (_, n) => (
-                    <option key={n} value={n}>{n}</option>
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
                   ))}
                 </select>
 
@@ -578,14 +690,20 @@ if (latest) {
                   {h.par === 3 ? (
                     <div style={styles.sdText}>
                       Par 3 target <b>{tgt}</b>
-                      <div style={styles.sdSub}>{h.strokeIndex <= 9 ? "SI 1–9 ⇒ treat as Par 4" : "SI 10–18 ⇒ Par 3"}</div>
+                      <div style={styles.sdSub}>
+                        {h.strokeIndex <= 9
+                          ? "SI 1–9 ⇒ treat as Par 4"
+                          : "SI 10–18 ⇒ Par 3"}
+                      </div>
                     </div>
                   ) : (
                     <label style={styles.sdLabel}>
                       <input
                         type="checkbox"
                         checked={h.reachedSD === true}
-                        onChange={(e) => updateHole(i, { reachedSD: e.target.checked })}
+                        onChange={(e) =>
+                          updateHole(i, { reachedSD: e.target.checked })
+                        }
                         disabled={isCompleted}
                       />
                       <span>≤ {allow} shots</span>
@@ -595,40 +713,54 @@ if (latest) {
 
                 <div style={styles.lostCell}>
                   {lost}
-                  <div style={styles.lostSub}>3-putt+: {puttingLost(h.putts)}</div>
+                  <div style={styles.lostSub}>
+                    3-putt+: {puttingLost(h.putts)}
+                  </div>
                 </div>
 
                 <div style={styles.oopsiesCell}>
                   <select
                     value={h.oopsies.lostBall}
-                    onChange={(e) => updateOops(i, "lostBall", Number(e.target.value))}
+                    onChange={(e) =>
+                      updateOops(i, "lostBall", Number(e.target.value))
+                    }
                     style={styles.selectOops}
                     disabled={isCompleted}
                   >
                     {Array.from({ length: 7 }, (_, n) => (
-                      <option key={n} value={n}>Lost {n}</option>
+                      <option key={n} value={n}>
+                        Lost {n}
+                      </option>
                     ))}
                   </select>
 
                   <select
                     value={h.oopsies.bunker}
-                    onChange={(e) => updateOops(i, "bunker", Number(e.target.value))}
+                    onChange={(e) =>
+                      updateOops(i, "bunker", Number(e.target.value))
+                    }
                     style={styles.selectOops}
                     disabled={isCompleted}
                   >
                     {Array.from({ length: 7 }, (_, n) => (
-                      <option key={n} value={n}>Bunk {n}</option>
+                      <option key={n} value={n}>
+                        Bunk {n}
+                      </option>
                     ))}
                   </select>
 
                   <select
                     value={h.oopsies.duffed}
-                    onChange={(e) => updateOops(i, "duffed", Number(e.target.value))}
+                    onChange={(e) =>
+                      updateOops(i, "duffed", Number(e.target.value))
+                    }
                     style={styles.selectOops}
                     disabled={isCompleted}
                   >
                     {Array.from({ length: 7 }, (_, n) => (
-                      <option key={n} value={n}>Duff {n}</option>
+                      <option key={n} value={n}>
+                        Duff {n}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -642,7 +774,12 @@ if (latest) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { background: "#0b1220", minHeight: "100vh", color: "#e6e8ee", padding: 16 },
+  page: {
+    background: "#0b1220",
+    minHeight: "100vh",
+    color: "#e6e8ee",
+    padding: 16,
+  },
   shell: { maxWidth: 1200, margin: "0 auto" },
 
   nav: {
@@ -654,8 +791,18 @@ const styles: Record<string, React.CSSProperties> = {
     marginBottom: 12,
   },
   brand: { fontWeight: 900, fontSize: 14, opacity: 0.95 },
-  navLinks: { display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" },
-  navLink: { color: "#9ecbff", textDecoration: "underline", fontWeight: 900, fontSize: 13 },
+  navLinks: {
+    display: "flex",
+    gap: 12,
+    alignItems: "center",
+    flexWrap: "wrap",
+  },
+  navLink: {
+    color: "#9ecbff",
+    textDecoration: "underline",
+    fontWeight: 900,
+    fontSize: 13,
+  },
   navBtn: {
     border: "1px solid rgba(255,255,255,0.22)",
     background: "rgba(255,255,255,0.10)",
@@ -667,12 +814,24 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
   },
 
-  header: { display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 },
+  header: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: 12,
+    flexWrap: "wrap",
+    marginBottom: 12,
+  },
   h1: { margin: 0, fontSize: 24 },
   h2: { margin: "0 0 8px", fontSize: 16 },
   sub: { opacity: 0.85, maxWidth: 900, margin: "6px 0 10px" },
 
-  kpis: { display: "flex", gap: 14, flexWrap: "wrap", fontSize: 13, opacity: 0.92 },
+  kpis: {
+    display: "flex",
+    gap: 14,
+    flexWrap: "wrap",
+    fontSize: 13,
+    opacity: 0.92,
+  },
 
   actions: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" },
 
@@ -791,7 +950,13 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
 
-  templateRow: { display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 10 },
+  templateRow: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    flexWrap: "wrap",
+    marginBottom: 10,
+  },
   smallNote: { fontSize: 12, opacity: 0.85, marginTop: 2, lineHeight: 1.35 },
   ol: { paddingLeft: 18, lineHeight: 1.55, margin: 0 },
 
@@ -809,7 +974,13 @@ const styles: Record<string, React.CSSProperties> = {
   goalSub: { fontSize: 12, opacity: 0.78, marginTop: 2, fontWeight: 700 },
 
   sdCell: { minWidth: 0 },
-  sdLabel: { display: "flex", gap: 10, alignItems: "center", fontWeight: 900, flexWrap: "wrap" },
+  sdLabel: {
+    display: "flex",
+    gap: 10,
+    alignItems: "center",
+    fontWeight: 900,
+    flexWrap: "wrap",
+  },
   sdText: { fontSize: 13, lineHeight: 1.2 },
   sdSub: { fontSize: 12, opacity: 0.8, marginTop: 4 },
 
