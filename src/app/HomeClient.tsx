@@ -436,6 +436,9 @@ export default function HomeClient() {
                 <b>SD%:</b> {summary.sdPct != null ? `${summary.sdPct}%` : "—"}
               </span>
               <span>
+                <b>NPIR%:</b> {summary.npirPct != null ? `${summary.npirPct}%` : "—"}
+              </span>
+              <span>
                 <b>Par-3%:</b>{" "}
                 {summary.p3Pct != null ? `${summary.p3Pct}%` : "—"}
               </span>

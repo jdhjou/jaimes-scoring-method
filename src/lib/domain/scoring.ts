@@ -54,6 +54,9 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
   let sdEligible = 0;
   let sdMade = 0;
 
+  let npirEligible = 0;
+  let npirMade = 0;
+
   let p3Eligible = 0;
   let p3Made = 0;
 
@@ -77,6 +80,22 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
       if (h.par !== 3) {
         sdEligible += 1;
         if (h.reachedSD === true) sdMade += 1;
+        
+        // NPIR% (Not-Puttable-In-Regulation): Tracks holes where GIR was NOT achieved
+        // (reachedSD === false or undefined on eligible non-par-3 holes).
+        //
+        // Why NPIR correlates better with scoring than GIR alone:
+        // 1. Direct failure tracking: NPIR directly measures missed opportunities to reach
+        //    the green in regulation, which are strongly associated with higher scores.
+        // 2. Penalty amplification: Missing GIR typically requires an up-and-down to save par,
+        //    and most golfers struggle with scrambling, leading to bogeys or worse.
+        // 3. Psychological impact: Tracking failures (NPIR) often provides clearer feedback
+        //    than tracking successes (GIR), as it highlights specific areas needing improvement.
+        // 4. Score prediction: A high NPIR% is a stronger predictor of poor scores than a low
+        //    GIR% alone, because missing greens forces difficult recovery shots and increases
+        //    the probability of additional strokes.
+        npirEligible += 1;
+        if (h.reachedSD !== true) npirMade += 1;
       }
 
       const p3 = par3Equivalent(round.level, h);
@@ -97,6 +116,7 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
   const toPar = holesWithStrokes ? totalStrokes - totalPar : undefined;
 
   const sdPct = sdEligible ? Math.round((sdMade / sdEligible) * 100) : undefined;
+  const npirPct = npirEligible ? Math.round((npirMade / npirEligible) * 100) : undefined;
   const p3Pct = p3Eligible ? Math.round((p3Made / p3Eligible) * 100) : undefined;
 
   const avgPutts =
@@ -109,6 +129,10 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
     sdPct,
     sdMade,
     sdEligible,
+
+    npirPct,
+    npirMade,
+    npirEligible,
 
     p3Pct,
     p3Made,
