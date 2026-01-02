@@ -39,6 +39,7 @@ type MetricKey =
   | "toPar"
   | "puttsLostTotal"
   | "sdPct"
+  | "npirPct"
   | "p3Pct"
   | "lostBalls"
   | "duffedShots";
@@ -53,6 +54,7 @@ const METRICS: Array<{
   { key: "toPar", title: "To Par", subtitle: "Lower is better", better: "down" },
   { key: "puttsLostTotal", title: "Putts lost", subtitle: "Lower is better", better: "down" },
   { key: "sdPct", title: "SD%", subtitle: "Higher is better", better: "up" },
+  { key: "npirPct", title: "NPIR%", subtitle: "Lower is better (Not-Puttable-In-Regulation)", better: "down" },
   { key: "p3Pct", title: "Par-3%", subtitle: "Higher is better", better: "up" },
   { key: "lostBalls", title: "Lost balls", subtitle: "Lower is better", better: "down" },
   { key: "duffedShots", title: "Duffed shots", subtitle: "Lower is better", better: "down" },
@@ -198,6 +200,7 @@ export default function InsightsClient() {
       toPar: [],
       puttsLostTotal: [],
       sdPct: [],
+      npirPct: [],
       p3Pct: [],
       lostBalls: [],
       duffedShots: [],
@@ -210,6 +213,7 @@ export default function InsightsClient() {
       pushIfFinite(out.toPar, s?.toPar);
       pushIfFinite(out.puttsLostTotal, s?.puttsLostTotal);
       pushIfFinite(out.sdPct, s?.sdPct);
+      pushIfFinite(out.npirPct, s?.npirPct);
       pushIfFinite(out.p3Pct, s?.p3Pct);
 
       // Standalone trends (counts)
@@ -444,14 +448,14 @@ function slopeDirection(better: "down" | "up", slope: number): "up" | "down" | "
 function fmtValue(key: MetricKey, v: number | null) {
   if (v == null || !Number.isFinite(v)) return "—";
   const n = Math.round(v);
-  if (key === "sdPct" || key === "p3Pct") return `${n}%`;
+  if (key === "sdPct" || key === "npirPct" || key === "p3Pct") return `${n}%`;
   if (key === "toPar") return n > 0 ? `+${n}` : `${n}`;
   return `${n}`;
 }
 function fmtDelta(key: MetricKey, v: number | null) {
   if (v == null || !Number.isFinite(v)) return "—";
   const n = Math.round(v);
-  if (key === "sdPct" || key === "p3Pct") return `${n > 0 ? "+" : ""}${n}%`;
+  if (key === "sdPct" || key === "npirPct" || key === "p3Pct") return `${n > 0 ? "+" : ""}${n}%`;
   if (key === "toPar") return `${n > 0 ? "+" : ""}${n}`;
   return `${n > 0 ? "+" : ""}${n}`;
 }

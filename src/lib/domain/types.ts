@@ -55,6 +55,13 @@ export type RoundSummary = {
   p3Made: number;
   p3Eligible: number;
 
+  // NPIR (Not-Puttable-In-Regulation): Percentage of eligible holes where GIR was NOT achieved
+  // This complements SD% by tracking failures. It correlates better with scoring than GIR alone
+  // because it directly measures missed opportunities that lead to higher scores.
+  npirPct?: number;
+  npirMade: number;
+  npirEligible: number;
+
   avgPutts?: number;
   puttsLostTotal: number;
 

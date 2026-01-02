@@ -323,6 +323,7 @@ export default function HistoryPage() {
                         <span><b>To Par:</b> {fmtToPar(s.to_par)}</span>
                         <span><b>Strokes:</b> {s.strokes ?? "—"}</span>
                         <span><b>SD%:</b> {fmtPct(s.sd_pct)}</span>
+                        <span><b>NPIR%:</b> {fmtPct((s as any).npir_pct)}</span>
                         <span><b>P3%:</b> {fmtPct(s.p3_pct)}</span>
                         <span><b>Putts lost:</b> {s.putts_lost_total ?? "—"}</span>
                         <span><b>Strokes lost:</b> {s.strokes_lost_total ?? "—"}</span>
