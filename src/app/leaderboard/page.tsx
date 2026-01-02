@@ -104,9 +104,12 @@ function fmtValue(v: any) {
             <h1 className="text-3xl font-black tracking-tight">Leaderboard</h1>
             <p className="opacity-80 text-sm mt-1">Sort by any insight metric across all players.</p>
           </div>
-          <nav className="text-lg font-bold">
-            <Link className="underline mr-4" href="/">Home</Link>
-            <Link className="underline" href="/insights">Insights</Link>
+          <nav className="flex gap-3 text-sm font-black">
+            <Link className="text-[#9ecbff] underline" href="/">Home</Link>
+            <Link className="text-[#9ecbff] underline" href="/history">History</Link>
+            <Link className="text-[#9ecbff] underline" href="/insights">Insights</Link>
+            <Link className="text-[#9ecbff] underline" href="/leaderboard">Leaderboard</Link>
+            <Link className="text-[#9ecbff] underline" href="/settings">Settings</Link>
           </nav>
         </header>
 

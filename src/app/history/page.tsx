@@ -201,8 +201,11 @@ export default function HistoryPage() {
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <h1 style={styles.h1}>History</h1>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/" style={styles.link}>Home</Link>
-            <Link href="/insights" style={styles.link}>Insights</Link>
+            <Link href="/" style={styles.navLink}>Home</Link>
+            <Link href="/history" style={styles.navLink}>History</Link>
+            <Link href="/insights" style={styles.navLink}>Insights</Link>
+            <Link href="/leaderboard" style={styles.navLink}>Leaderboard</Link>
+            <Link href="/settings" style={styles.navLink}>Settings</Link>
           </div>
         </div>
 
@@ -369,6 +372,12 @@ const styles: Record<string, React.CSSProperties> = {
   h1: { margin: 0, fontSize: 26, fontWeight: 900 },
   h2: { margin: "0 0 10px", fontSize: 16, fontWeight: 900 },
   link: { color: "#9ecbff", textDecoration: "underline", fontWeight: 900 },
+  navLink: {
+    color: "#9ecbff",
+    textDecoration: "underline",
+    fontWeight: 900,
+    fontSize: 13,
+  },
   roundLink: { color: "#e6e8ee", textDecoration: "none" },
   muted: { opacity: 0.85, fontSize: 12 },
 

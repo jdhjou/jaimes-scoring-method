@@ -125,9 +125,11 @@ export default function SettingsPage() {
           </div>
 
           <div style={styles.headerRight}>
-            <Link href="/" style={styles.link}>
-              Back to Home
-            </Link>
+            <Link href="/" style={styles.navLink}>Home</Link>
+            <Link href="/history" style={styles.navLink}>History</Link>
+            <Link href="/insights" style={styles.navLink}>Insights</Link>
+            <Link href="/leaderboard" style={styles.navLink}>Leaderboard</Link>
+            <Link href="/settings" style={styles.navLink}>Settings</Link>
           </div>
         </header>
 
@@ -234,7 +236,13 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "flex-start",
     marginBottom: 12,
   },
-  headerRight: { display: "flex", alignItems: "center", gap: 10 },
+  headerRight: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  navLink: {
+    color: "#9ecbff",
+    textDecoration: "underline",
+    fontWeight: 900,
+    fontSize: 13,
+  },
 
   h1: { margin: 0, fontSize: 24, fontWeight: 900 },
   h2: { margin: "0 0 8px", fontSize: 16, fontWeight: 900 },

@@ -399,12 +399,12 @@ export default function HomeClient() {
             <Link href="/insights" style={styles.navLink}>
               Insights
             </Link>
-            <Link className="underline" href="/leaderboard">
+            <Link href="/leaderboard" style={styles.navLink}>
               Leaderboard
             </Link>
-            <Link href="/settings" style={styles.linkBtn as any}>
-               Settings
-             </Link>
+            <Link href="/settings" style={styles.navLink}>
+              Settings
+            </Link>
             <button
               style={styles.navBtn}
               onClick={newRoundKeepCourse}

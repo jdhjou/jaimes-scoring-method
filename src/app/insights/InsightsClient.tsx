@@ -264,8 +264,11 @@ export default function InsightsClient() {
         <div style={styles.top}>
           <h1 style={styles.h1}>Insights</h1>
           <div style={styles.nav}>
-            <Link href="/" style={styles.link}>Home</Link>
-            <Link href="/history" style={styles.link}>History</Link>
+            <Link href="/" style={styles.navLink}>Home</Link>
+            <Link href="/history" style={styles.navLink}>History</Link>
+            <Link href="/insights" style={styles.navLink}>Insights</Link>
+            <Link href="/leaderboard" style={styles.navLink}>Leaderboard</Link>
+            <Link href="/settings" style={styles.navLink}>Settings</Link>
           </div>
         </div>
 
@@ -504,6 +507,12 @@ const styles: Record<string, React.CSSProperties> = {
   h2: { margin: "0 0 10px", fontSize: 16, fontWeight: 900 },
 
   link: { color: "#9ecbff", textDecoration: "underline", fontWeight: 900 },
+  navLink: {
+    color: "#9ecbff",
+    textDecoration: "underline",
+    fontWeight: 900,
+    fontSize: 13,
+  },
   subline: { fontSize: 12, opacity: 0.8, marginTop: 6 },
 
   grid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 12 },
