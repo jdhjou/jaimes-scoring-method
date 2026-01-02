@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import type { CourseTemplate, Level, RoundState } from "@/lib/domain/types";
 import {
@@ -31,8 +31,6 @@ import {
   upsertRound,
 } from "@/lib/storage/remoteSupabase";
 
-import { useSearchParams } from "next/navigation";
-
 // Added Goal column after SI
 const COLS = "34px 70px 70px 70px 90px 80px 260px 120px 1fr";
 
@@ -60,7 +58,7 @@ function goalScore(level: Level, par: number, strokeIndex: number): number {
   return par + (strokeIndex >= 10 ? 1 : 0);
 }
 
-export default function Page() {
+export default function HomeClient() {
   const searchParams = useSearchParams();
   const roundParam = searchParams.get("round");
 
@@ -119,13 +117,13 @@ export default function Page() {
         if (latest) {
           if (!supabase) throw new Error("Supabase client not initialized.");
 
-          const { data, error } = await supabase
+          const { data, error: qErr } = await supabase
             .from("rounds")
             .select("completed")
             .eq("id", latest.roundId)
             .single();
 
-          if (error) throw error;
+          if (qErr) throw qErr;
 
           const completed = !!data?.completed;
 
@@ -162,7 +160,7 @@ export default function Page() {
         loadingFromDb.current = false;
       }
     })();
-  }, [session?.user?.id, roundParam, supabaseInitError]);
+  }, [session?.user?.id, roundParam]);
 
   // Autosave to DB (debounced)
   useEffect(() => {
@@ -187,6 +185,7 @@ export default function Page() {
       if (saveTimer.current) window.clearTimeout(saveTimer.current);
     };
   }, [session?.user?.id, round, roundId, courseId, isCompleted]);
+
   function setLevel(level: Level) {
     if (isCompleted) return;
     setRound((r) => ({ ...r, level }));
@@ -265,7 +264,7 @@ export default function Page() {
       setSyncMsg("Finishing…");
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      const { error: uErr } = await supabase
         .from("rounds")
         .update({
           completed: true,
@@ -274,7 +273,7 @@ export default function Page() {
         })
         .eq("id", roundId);
 
-      if (error) throw error;
+      if (uErr) throw uErr;
 
       setIsCompleted(true);
       setSyncMsg("Finished ✓");
@@ -494,9 +493,7 @@ export default function Page() {
               style={isCompleted ? styles.btnDisabled : styles.btnPrimary}
               onClick={finishRound}
               disabled={!roundId || isCompleted}
-              title={
-                isCompleted ? "This round is finished" : "Finish this round"
-              }
+              title={isCompleted ? "This round is finished" : "Finish this round"}
             >
               {isCompleted ? "Finished ✓" : "Finish round"}
             </button>
@@ -577,196 +574,196 @@ export default function Page() {
           </ol>
         </section>
 
+        {/* TABLE (horizontally scrollable region) */}
         <section style={styles.table}>
-          <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
-            <div>#</div>
-            <div>Par</div>
-            <div>SI</div>
-            <div>Goal</div>
-            <div>Stk</div>
-            <div>Putts</div>
-            <div>Reached SD</div>
-            <div>Stk loss</div>
-            <div>Oopsies</div>
-          </div>
+          <div style={styles.tableScroll} role="region" aria-label="Scoring table">
+            <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
+              <div>#</div>
+              <div>Par</div>
+              <div>SI</div>
+              <div>Goal</div>
+              <div>Stk</div>
+              <div>Putts</div>
+              <div>Reached SD</div>
+              <div>Stk loss</div>
+              <div>Oopsies</div>
+            </div>
 
-          {round.holes.slice(0, round.holesCount).map((h, i) => {
-            const allow = allowedShotsToSD(round.level, h);
-            const tgt = targetAfterSD(h);
-            const lost = holeStrokesLost(h, round.weights);
-            const goal = goalScore(round.level, h.par, h.strokeIndex);
+            {round.holes.slice(0, round.holesCount).map((h, i) => {
+              const allow = allowedShotsToSD(round.level, h);
+              const tgt = targetAfterSD(h);
+              const lost = holeStrokesLost(h, round.weights);
+              const goal = goalScore(round.level, h.par, h.strokeIndex);
 
-            return (
-              <div
-                key={h.n}
-                style={{ ...styles.row, gridTemplateColumns: COLS }}
-              >
-                <div style={styles.cellNum}>{h.n}</div>
+              return (
+                <div key={h.n} style={{ ...styles.row, gridTemplateColumns: COLS }}>
+                  <div style={styles.cellNum}>{h.n}</div>
 
-                <select
-                  value={h.par}
-                  onChange={(e) =>
-                    updateHole(i, { par: Number(e.target.value) as 3 | 4 | 5 })
-                  }
-                  style={styles.selectCell}
-                  disabled={isCompleted}
-                >
-                  <option value={3}>3</option>
-                  <option value={4}>4</option>
-                  <option value={5}>5</option>
-                </select>
+                  <select
+                    value={h.par}
+                    onChange={(e) =>
+                      updateHole(i, { par: Number(e.target.value) as 3 | 4 | 5 })
+                    }
+                    style={styles.selectCell}
+                    disabled={isCompleted}
+                  >
+                    <option value={3}>3</option>
+                    <option value={4}>4</option>
+                    <option value={5}>5</option>
+                  </select>
 
-                <select
-                  value={h.strokeIndex}
-                  onChange={(e) =>
-                    updateHole(i, { strokeIndex: Number(e.target.value) })
-                  }
-                  style={styles.selectCell}
-                  disabled={isCompleted}
-                >
-                  {Array.from({ length: 18 }, (_, n) => (
-                    <option key={n + 1} value={n + 1}>
-                      {n + 1}
-                    </option>
-                  ))}
-                </select>
+                  <select
+                    value={h.strokeIndex}
+                    onChange={(e) =>
+                      updateHole(i, { strokeIndex: Number(e.target.value) })
+                    }
+                    style={styles.selectCell}
+                    disabled={isCompleted}
+                  >
+                    {Array.from({ length: 18 }, (_, n) => (
+                      <option key={n + 1} value={n + 1}>
+                        {n + 1}
+                      </option>
+                    ))}
+                  </select>
 
-                <div style={styles.goalCell}>
-                  <b>{goal}</b>
-                  <div style={styles.goalSub}>
-                    {round.level === "Scratch"
-                      ? "Par"
-                      : round.level === "Bogey Golf"
-                        ? "Par+1"
-                        : h.strokeIndex >= 10
+                  <div style={styles.goalCell}>
+                    <b>{goal}</b>
+                    <div style={styles.goalSub}>
+                      {round.level === "Scratch"
+                        ? "Par"
+                        : round.level === "Bogey Golf"
                           ? "Par+1"
-                          : "Par"}
-                  </div>
-                </div>
-
-                <select
-                  value={h.strokes ?? ""}
-                  onChange={(e) =>
-                    updateHole(i, {
-                      strokes:
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                    })
-                  }
-                  style={styles.selectCell}
-                  disabled={isCompleted}
-                >
-                  <option value="">—</option>
-                  {Array.from({ length: 21 }, (_, n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-
-                <select
-                  value={h.putts ?? ""}
-                  onChange={(e) =>
-                    updateHole(i, {
-                      putts:
-                        e.target.value === ""
-                          ? undefined
-                          : Number(e.target.value),
-                    })
-                  }
-                  style={styles.selectCell}
-                  disabled={isCompleted}
-                >
-                  <option value="">—</option>
-                  {Array.from({ length: 11 }, (_, n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-
-                <div style={styles.sdCell}>
-                  {h.par === 3 ? (
-                    <div style={styles.sdText}>
-                      Par 3 target <b>{tgt}</b>
-                      <div style={styles.sdSub}>
-                        {h.strokeIndex <= 9
-                          ? "SI 1–9 ⇒ treat as Par 4"
-                          : "SI 10–18 ⇒ Par 3"}
-                      </div>
+                          : h.strokeIndex >= 10
+                            ? "Par+1"
+                            : "Par"}
                     </div>
-                  ) : (
-                    <label style={styles.sdLabel}>
-                      <input
-                        type="checkbox"
-                        checked={h.reachedSD === true}
-                        onChange={(e) =>
-                          updateHole(i, { reachedSD: e.target.checked })
-                        }
-                        disabled={isCompleted}
-                      />
-                      <span>≤ {allow} shots</span>
-                    </label>
-                  )}
-                </div>
+                  </div>
 
-                <div style={styles.lostCell}>
-                  {lost}
-                  <div style={styles.lostSub}>
-                    3-putt+: {puttingLost(h.putts)}
+                  <select
+                    value={h.strokes ?? ""}
+                    onChange={(e) =>
+                      updateHole(i, {
+                        strokes:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      })
+                    }
+                    style={styles.selectCell}
+                    disabled={isCompleted}
+                  >
+                    <option value="">—</option>
+                    {Array.from({ length: 21 }, (_, n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={h.putts ?? ""}
+                    onChange={(e) =>
+                      updateHole(i, {
+                        putts:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      })
+                    }
+                    style={styles.selectCell}
+                    disabled={isCompleted}
+                  >
+                    <option value="">—</option>
+                    {Array.from({ length: 11 }, (_, n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div style={styles.sdCell}>
+                    {h.par === 3 ? (
+                      <div style={styles.sdText}>
+                        Par 3 target <b>{tgt}</b>
+                        <div style={styles.sdSub}>
+                          {h.strokeIndex <= 9
+                            ? "SI 1–9 ⇒ treat as Par 4"
+                            : "SI 10–18 ⇒ Par 3"}
+                        </div>
+                      </div>
+                    ) : (
+                      <label style={styles.sdLabel}>
+                        <input
+                          type="checkbox"
+                          checked={h.reachedSD === true}
+                          onChange={(e) =>
+                            updateHole(i, { reachedSD: e.target.checked })
+                          }
+                          disabled={isCompleted}
+                        />
+                        <span>≤ {allow} shots</span>
+                      </label>
+                    )}
+                  </div>
+
+                  <div style={styles.lostCell}>
+                    {lost}
+                    <div style={styles.lostSub}>
+                      3-putt+: {puttingLost(h.putts)}
+                    </div>
+                  </div>
+
+                  <div style={styles.oopsiesCell}>
+                    <select
+                      value={h.oopsies.lostBall}
+                      onChange={(e) =>
+                        updateOops(i, "lostBall", Number(e.target.value))
+                      }
+                      style={styles.selectOops}
+                      disabled={isCompleted}
+                    >
+                      {Array.from({ length: 7 }, (_, n) => (
+                        <option key={n} value={n}>
+                          Lost {n}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={h.oopsies.bunker}
+                      onChange={(e) =>
+                        updateOops(i, "bunker", Number(e.target.value))
+                      }
+                      style={styles.selectOops}
+                      disabled={isCompleted}
+                    >
+                      {Array.from({ length: 7 }, (_, n) => (
+                        <option key={n} value={n}>
+                          Bunk {n}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={h.oopsies.duffed}
+                      onChange={(e) =>
+                        updateOops(i, "duffed", Number(e.target.value))
+                      }
+                      style={styles.selectOops}
+                      disabled={isCompleted}
+                    >
+                      {Array.from({ length: 7 }, (_, n) => (
+                        <option key={n} value={n}>
+                          Duff {n}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 </div>
-
-                <div style={styles.oopsiesCell}>
-                  <select
-                    value={h.oopsies.lostBall}
-                    onChange={(e) =>
-                      updateOops(i, "lostBall", Number(e.target.value))
-                    }
-                    style={styles.selectOops}
-                    disabled={isCompleted}
-                  >
-                    {Array.from({ length: 7 }, (_, n) => (
-                      <option key={n} value={n}>
-                        Lost {n}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={h.oopsies.bunker}
-                    onChange={(e) =>
-                      updateOops(i, "bunker", Number(e.target.value))
-                    }
-                    style={styles.selectOops}
-                    disabled={isCompleted}
-                  >
-                    {Array.from({ length: 7 }, (_, n) => (
-                      <option key={n} value={n}>
-                        Bunk {n}
-                      </option>
-                    ))}
-                  </select>
-
-                  <select
-                    value={h.oopsies.duffed}
-                    onChange={(e) =>
-                      updateOops(i, "duffed", Number(e.target.value))
-                    }
-                    style={styles.selectOops}
-                    disabled={isCompleted}
-                  >
-                    {Array.from({ length: 7 }, (_, n) => (
-                      <option key={n} value={n}>
-                        Duff {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </section>
       </div>
     </div>
@@ -779,6 +776,7 @@ const styles: Record<string, React.CSSProperties> = {
     minHeight: "100vh",
     color: "#e6e8ee",
     padding: 16,
+    overflowX: "hidden", // prevent page-level sideways drift on mobile
   },
   shell: { maxWidth: 1200, margin: "0 auto" },
 
@@ -856,7 +854,16 @@ const styles: Record<string, React.CSSProperties> = {
   table: {
     border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
-    overflow: "hidden",
+    overflow: "hidden", // keep rounded corners
+  },
+
+  // actual horizontal scrolling happens here (inside the rounded container)
+  tableScroll: {
+    width: "100%",
+    overflowX: "auto",
+    overflowY: "hidden",
+    WebkitOverflowScrolling: "touch",
+    touchAction: "pan-x",
   },
 
   head: {
@@ -866,6 +873,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     gap: 8,
     alignItems: "center",
+    minWidth: "max-content",
   },
 
   row: {
@@ -874,6 +882,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderTop: "1px solid rgba(255,255,255,0.08)",
     alignItems: "center",
     gap: 8,
+    minWidth: "max-content",
   },
 
   cellNum: { fontWeight: 900 },
