@@ -187,7 +187,7 @@ function fmtValue(v: any) {
                 {rows.map((r, i) => (
                   <tr key={r.user_id ?? i} className="border-t border-white/10">
                     <td className="p-3 font-black">{i + 1}</td>
-                    <td className="p-3 font-bold">{r.display_name ?? "Player"}</td>
+                    <td className="p-3 font-bold">{r.username ?? r.display_name ?? "Player"}</td>
                     <td className="p-3 font-black">{fmtValue(r.value ?? r[Object.keys(r).find(k => k.startsWith("avg_"))!])}</td>
                     <td className="p-3">{r.rounds_counted ?? r.rounds ?? "—"}</td>
                     <td className="p-3 opacity-80">{String(r.last_played_at ?? r.last_played ?? r.latest ?? "—")}</td>

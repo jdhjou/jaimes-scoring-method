@@ -62,7 +62,7 @@ export default function HomeClient() {
   const searchParams = useSearchParams();
   const roundParam = searchParams.get("round");
 
-  const { session, loading, error } = useSession();
+  const { session, profile, loading, error } = useSession();
   const router = useRouter();
 
   const [round, setRound] = useState<RoundState>(() => defaultRound(18));
@@ -454,7 +454,7 @@ export default function HomeClient() {
             </div>
 
             <div style={{ marginTop: 10, opacity: 0.85, fontSize: 12 }}>
-              Logged in as: <b>{session.user.email}</b> •{" "}
+              Logged in as: <b>{profile?.username ?? session.user.email}</b> •{" "}
               <button style={styles.linkBtn} onClick={signOut}>
                 Sign out
               </button>

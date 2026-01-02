@@ -61,7 +61,7 @@ const METRICS: Array<{
 ];
 
 export default function InsightsClient() {
-  const { session, loading, error } = useSession();
+  const { session, profile, loading, error } = useSession();
 
   const [msg, setMsg] = useState("");
   const [rounds, setRounds] = useState<RoundMeta[]>([]);
@@ -274,7 +274,7 @@ export default function InsightsClient() {
 
         <div style={{ ...styles.card, marginTop: 12 }}>
           <div style={{ fontSize: 12, opacity: 0.9 }}>
-            Logged in as <b>{session.user.email}</b>
+            Logged in as <b>{profile?.username ?? session.user.email}</b>
             <span style={{ marginLeft: 10 }}>• <b>{msg}</b></span>
           </div>
 

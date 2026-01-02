@@ -29,7 +29,7 @@ type RoundSummaryRow = {
 };
 
 export default function HistoryPage() {
-  const { session, loading, error } = useSession();
+  const { session, profile, loading, error } = useSession();
 
   const [rounds, setRounds] = useState<RoundRow[]>([]);
   const [summaries, setSummaries] = useState<Map<string, RoundSummaryRow>>(new Map());
@@ -211,7 +211,7 @@ export default function HistoryPage() {
 
         <div style={{ ...styles.card, marginTop: 12 }}>
           <div style={{ fontSize: 12, opacity: 0.9 }}>
-            Logged in as <b>{session.user.email}</b>
+            Logged in as <b>{profile?.username ?? session.user.email}</b>
             <span style={{ marginLeft: 10 }}>• <b>{msg}</b></span>
           </div>
         </div>
