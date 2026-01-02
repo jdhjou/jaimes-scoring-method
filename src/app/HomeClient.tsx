@@ -402,6 +402,9 @@ export default function HomeClient() {
             <Link className="underline" href="/leaderboard">
               Leaderboard
             </Link>
+            <Link href="/settings" style={styles.linkBtn as any}>
+               Settings
+             </Link>
             <button
               style={styles.navBtn}
               onClick={newRoundKeepCourse}
