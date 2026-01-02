@@ -33,6 +33,50 @@ export default function HistoryPage() {
   const [rounds, setRounds] = useState<RoundRow[]>([]);
   const [summaries, setSummaries] = useState<Map<string, RoundSummaryRow>>(new Map());
   const [msg, setMsg] = useState<string>("");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  async function loadHistory() {
+    if (!session?.user?.id) return;
+    if (!supabase) throw new Error("Supabase client not initialized.");
+
+    setMsg("Loading history…");
+
+    const { data: r, error: rErr } = await supabase
+      .from("rounds")
+      .select("id, course_id, holes_count, level, started_at, finished_at, completed, completed_at")
+      .eq("created_by", session.user.id)
+      .order("started_at", { ascending: false });
+
+    if (rErr) throw rErr;
+
+    const list = (r ?? []) as RoundRow[];
+    setRounds(list);
+
+    const finishedIds = list.filter((x) => x.completed).map((x) => x.id);
+    if (!finishedIds.length) {
+      setSummaries(new Map());
+      setMsg("Synced");
+      return;
+    }
+
+    // summaries are optional; ignore if missing
+    const { data: s, error: sErr } = await supabase
+      .from("round_summaries")
+      .select("round_id, strokes, to_par, sd_pct, p3_pct, putts_lost_total, strokes_lost_total")
+      .in("round_id", finishedIds);
+
+    if (sErr) {
+      setSummaries(new Map());
+      setMsg("Synced (no summaries)");
+      return;
+    }
+
+    const map = new Map<string, RoundSummaryRow>();
+    for (const row of (s ?? []) as RoundSummaryRow[]) map.set(row.round_id, row);
+    setSummaries(map);
+
+    setMsg("Synced");
+  }
 
   useEffect(() => {
     if (loading) return;
@@ -43,46 +87,7 @@ export default function HistoryPage() {
 
     (async () => {
       try {
-        if (!supabase) throw new Error("Supabase client not initialized.");
-        setMsg("Loading history…");
-
-        const { data: r, error: rErr } = await supabase
-          .from("rounds")
-          .select("id, course_id, holes_count, level, started_at, finished_at, completed, completed_at")
-          .eq("created_by", session.user.id)
-          .order("started_at", { ascending: false });
-
-        if (rErr) throw rErr;
-        const list = (r ?? []) as RoundRow[];
-        if (cancelled) return;
-
-        setRounds(list);
-
-        const finishedIds = list.filter((x) => x.completed).map((x) => x.id);
-        if (!finishedIds.length) {
-          setSummaries(new Map());
-          setMsg("Synced");
-          return;
-        }
-
-        // Optional summaries (if table exists). If it errors, we just hide leaderboard/metrics.
-        const { data: s, error: sErr } = await supabase
-          .from("round_summaries")
-          .select("round_id, strokes, to_par, sd_pct, p3_pct, putts_lost_total, strokes_lost_total")
-          .in("round_id", finishedIds);
-
-        if (sErr) {
-          setSummaries(new Map());
-          setMsg("Synced (no summaries)");
-          return;
-        }
-
-        const map = new Map<string, RoundSummaryRow>();
-        for (const row of (s ?? []) as RoundSummaryRow[]) map.set(row.round_id, row);
-        if (cancelled) return;
-
-        setSummaries(map);
-        setMsg("Synced");
+        await loadHistory();
       } catch (e: any) {
         if (!cancelled) setMsg(`History error: ${e?.message ?? String(e)}`);
       }
@@ -91,6 +96,7 @@ export default function HistoryPage() {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, error, session?.user?.id]);
 
   const inProgress = useMemo(() => rounds.filter((r) => !r.completed), [rounds]);
@@ -113,6 +119,44 @@ export default function HistoryPage() {
       })
       .slice(0, 10);
   }, [finished, summaries]);
+
+  async function deleteRound(roundId: string) {
+    const ok = window.confirm(
+      "Delete this round?\n\nThis will permanently remove the round and all its holes."
+    );
+    if (!ok) return;
+
+    try {
+      if (!supabase) throw new Error("Supabase client not initialized.");
+      setDeletingId(roundId);
+      setMsg("Deleting…");
+
+      // 1) delete hole rows first
+      const { error: hErr } = await supabase.from("round_holes").delete().eq("round_id", roundId);
+      if (hErr) throw hErr;
+
+      // 2) delete optional summary row (ignore failure)
+      await supabase.from("round_summaries").delete().eq("round_id", roundId);
+
+      // 3) delete the round itself
+      const { error: rErr } = await supabase.from("rounds").delete().eq("id", roundId);
+      if (rErr) throw rErr;
+
+      // update UI
+      setRounds((prev) => prev.filter((r) => r.id !== roundId));
+      setSummaries((prev) => {
+        const next = new Map(prev);
+        next.delete(roundId);
+        return next;
+      });
+
+      setMsg("Deleted ✓");
+    } catch (e: any) {
+      setMsg(`Delete error: ${e?.message ?? String(e)}`);
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   // gates
   if (loading) {
@@ -155,7 +199,10 @@ export default function HistoryPage() {
       <div style={styles.shell}>
         <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
           <h1 style={styles.h1}>History</h1>
-          <Link href="/" style={styles.link}>← Back to scoring</Link>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link href="/" style={styles.link}>Home</Link>
+            <Link href="/insights" style={styles.link}>Insights</Link>
+          </div>
         </div>
 
         <div style={{ ...styles.card, marginTop: 12 }}>
@@ -169,16 +216,17 @@ export default function HistoryPage() {
           <section style={styles.card}>
             <h2 style={styles.h2}>Leaderboard (best finished rounds)</h2>
             <div style={styles.table}>
-              <div style={{ ...styles.thead, gridTemplateColumns: "60px 1fr 90px 90px 90px 120px" }}>
+              <div style={{ ...styles.thead, gridTemplateColumns: "60px 1fr 90px 90px 90px 120px 110px" }}>
                 <div>Rank</div>
                 <div>Round</div>
                 <div>To Par</div>
                 <div>Strokes</div>
                 <div>Lost</div>
                 <div>Date</div>
+                <div></div>
               </div>
               {leaderboard.map(({ r, s }, idx) => (
-                <div key={r.id} style={{ ...styles.trow, gridTemplateColumns: "60px 1fr 90px 90px 90px 120px" }}>
+                <div key={r.id} style={{ ...styles.trow, gridTemplateColumns: "60px 1fr 90px 90px 90px 120px 110px" }}>
                   <div style={{ fontWeight: 900 }}>{idx + 1}</div>
                   <div>
                     <Link href={`/?round=${r.id}`} style={styles.roundLink}>
@@ -190,11 +238,18 @@ export default function HistoryPage() {
                   <div>{s?.strokes ?? "—"}</div>
                   <div><b>{s?.strokes_lost_total ?? "—"}</b></div>
                   <div>{fmtDate(r.completed_at ?? r.finished_at ?? r.started_at)}</div>
+                  <div style={{ textAlign: "right" }}>
+                    <button
+                      style={styles.btnDangerSmall}
+                      onClick={() => deleteRound(r.id)}
+                      disabled={deletingId === r.id}
+                      title="Delete this round"
+                    >
+                      {deletingId === r.id ? "Deleting…" : "Delete"}
+                    </button>
+                  </div>
                 </div>
               ))}
-            </div>
-            <div style={styles.note}>
-              Leaderboard shows only if <code>round_summaries</code> exists and has <code>strokes_lost_total</code>.
             </div>
           </section>
         )}
@@ -213,7 +268,17 @@ export default function HistoryPage() {
                         {shortId(r.id)} • {r.level ?? "—"} • {r.holes_count ?? "—"} holes
                       </Link>
                     </div>
-                    <div style={styles.muted}>{fmtDate(r.started_at)}</div>
+
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                      <div style={styles.muted}>{fmtDate(r.started_at)}</div>
+                      <button
+                        style={styles.btnDangerSmall}
+                        onClick={() => deleteRound(r.id)}
+                        disabled={deletingId === r.id}
+                      >
+                        {deletingId === r.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
                   </div>
                   <div style={styles.subline}>course_id: {r.course_id ?? "—"}</div>
                 </div>
@@ -238,7 +303,17 @@ export default function HistoryPage() {
                           {shortId(r.id)} • {r.level ?? "—"} • {r.holes_count ?? "—"} holes
                         </Link>
                       </div>
-                      <div style={styles.muted}>{fmtDate(r.completed_at ?? r.finished_at ?? r.started_at)}</div>
+
+                      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                        <div style={styles.muted}>{fmtDate(r.completed_at ?? r.finished_at ?? r.started_at)}</div>
+                        <button
+                          style={styles.btnDangerSmall}
+                          onClick={() => deleteRound(r.id)}
+                          disabled={deletingId === r.id}
+                        >
+                          {deletingId === r.id ? "Deleting…" : "Delete"}
+                        </button>
+                      </div>
                     </div>
 
                     <div style={styles.subline}>course_id: {r.course_id ?? "—"}</div>
@@ -291,7 +366,7 @@ const styles: Record<string, React.CSSProperties> = {
   shell: { maxWidth: 1100, margin: "0 auto" },
   h1: { margin: 0, fontSize: 26, fontWeight: 900 },
   h2: { margin: "0 0 10px", fontSize: 16, fontWeight: 900 },
-  link: { color: "#9ecbff", textDecoration: "underline", fontWeight: 800 },
+  link: { color: "#9ecbff", textDecoration: "underline", fontWeight: 900 },
   roundLink: { color: "#e6e8ee", textDecoration: "none" },
   muted: { opacity: 0.85, fontSize: 12 },
 
@@ -335,6 +410,15 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
   },
 
+  btnDangerSmall: {
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(231, 76, 60, 0.18)",
+    color: "#e6e8ee",
+    padding: "8px 10px",
+    borderRadius: 10,
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+
   pre: { whiteSpace: "pre-wrap", background: "#111", color: "#fff", padding: 12, borderRadius: 8, margin: 0 },
-  note: { marginTop: 10, fontSize: 12, opacity: 0.8, lineHeight: 1.35 },
 };
