@@ -40,6 +40,7 @@ type MetricKey =
   | "toPar"
   | "puttsLostTotal"
   | "missedPutts6ftTotal"
+  | "missedPutts6ftPct"
   | "sdPct"
   | "npirPct"
   | "p3Pct"
@@ -55,7 +56,8 @@ const METRICS: Array<{
   { key: "strokesLostTotal", title: "Strokes lost", subtitle: "Lower is better", better: "down" },
   { key: "toPar", title: "To Par", subtitle: "Lower is better", better: "down" },
   { key: "puttsLostTotal", title: "Putts lost", subtitle: "Lower is better", better: "down" },
-  { key: "missedPutts6ftTotal", title: "Missed putts 6ft", subtitle: "Lower is better", better: "down" },
+  { key: "missedPutts6ftTotal", title: "Missed putts 6ft (total)", subtitle: "Lower is better", better: "down" },
+  { key: "missedPutts6ftPct", title: "Missed putts 6ft %", subtitle: "Lower is better", better: "down" },
   { key: "sdPct", title: "SD%", subtitle: "Higher is better", better: "up" },
   { key: "npirPct", title: "NPIR%", subtitle: "Lower is better (Not-Puttable-In-Regulation)", better: "down" },
   { key: "p3Pct", title: "Par-3%", subtitle: "Higher is better", better: "up" },
@@ -204,6 +206,7 @@ export default function InsightsClient() {
       toPar: [],
       puttsLostTotal: [],
       missedPutts6ftTotal: [],
+      missedPutts6ftPct: [],
       sdPct: [],
       npirPct: [],
       p3Pct: [],
@@ -218,6 +221,7 @@ export default function InsightsClient() {
       pushIfFinite(out.toPar, s?.toPar);
       pushIfFinite(out.puttsLostTotal, s?.puttsLostTotal);
       pushIfFinite(out.missedPutts6ftTotal, s?.missedPutts6ftTotal);
+      pushIfFinite(out.missedPutts6ftPct, s?.missedPutts6ftPct);
       pushIfFinite(out.sdPct, s?.sdPct);
       pushIfFinite(out.npirPct, s?.npirPct);
       pushIfFinite(out.p3Pct, s?.p3Pct);
@@ -457,14 +461,14 @@ function slopeDirection(better: "down" | "up", slope: number): "up" | "down" | "
 function fmtValue(key: MetricKey, v: number | null) {
   if (v == null || !Number.isFinite(v)) return "—";
   const n = Math.round(v);
-  if (key === "sdPct" || key === "npirPct" || key === "p3Pct") return `${n}%`;
+  if (key === "sdPct" || key === "npirPct" || key === "p3Pct" || key === "missedPutts6ftPct") return `${n}%`;
   if (key === "toPar") return n > 0 ? `+${n}` : `${n}`;
   return `${n}`;
 }
 function fmtDelta(key: MetricKey, v: number | null) {
   if (v == null || !Number.isFinite(v)) return "—";
   const n = Math.round(v);
-  if (key === "sdPct" || key === "npirPct" || key === "p3Pct") return `${n > 0 ? "+" : ""}${n}%`;
+  if (key === "sdPct" || key === "npirPct" || key === "p3Pct" || key === "missedPutts6ftPct") return `${n > 0 ? "+" : ""}${n}%`;
   if (key === "toPar") return `${n > 0 ? "+" : ""}${n}`;
   return `${n > 0 ? "+" : ""}${n}`;
 }
