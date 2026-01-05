@@ -954,14 +954,16 @@ const styles: Record<string, React.CSSProperties> = {
   table: {
     border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
-    overflow: "hidden", // keep rounded corners
+    overflowX: "hidden", // keep rounded corners on sides
+    overflowY: "visible", // allow content to expand vertically
+    // Don't constrain height - let content determine it
   },
 
   // actual horizontal scrolling happens here (inside the rounded container)
   tableScroll: {
     width: "100%",
     overflowX: "auto", // Horizontal scroll for columns
-    overflowY: "visible", // Allow content to expand vertically - page handles scrolling
+    overflowY: "visible", // Explicitly set to visible to allow content expansion (required when overflowX is non-visible)
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x pan-y", // Allow both horizontal and vertical scrolling
     msOverflowStyle: "-ms-autohiding-scrollbar",
