@@ -962,28 +962,27 @@ const styles: Record<string, React.CSSProperties> = {
   tableScroll: {
     width: "100%",
     overflowX: "auto", // Horizontal scroll for columns
-    overflowY: "auto", // Allow vertical scrolling within container if needed
-    // Note: We use overflowY: "auto" instead of "visible" because "visible" doesn't work with overflowX: "auto"
-    // The container will expand to fit content, and scrollbars appear only if content exceeds viewport
+    overflowY: "auto", // Must be auto when overflowX is auto (CSS spec requirement)
+    // Note: overflowY: "visible" is invalid with overflowX: "auto", so we use "auto"
+    // The container will expand to fit content height, and scrollbars appear only if needed
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x pan-y", // Allow both horizontal and vertical scrolling
     msOverflowStyle: "-ms-autohiding-scrollbar",
     scrollbarWidth: "thin",
     position: "relative",
     overscrollBehaviorX: "contain",
-    // Ensure container expands to fit content height - don't constrain it
-    height: "auto",
-    maxHeight: "none",
+    // Ensure container expands to fit content - use fit-content to prevent collapse
+    height: "fit-content",
+    minHeight: "fit-content",
   },
   
   // Inner wrapper to ensure content width is recognized
   tableInner: {
-    display: "block", // Block display to allow vertical expansion
+    display: "block", // Block display preserves grid layout behavior
     minWidth: "max-content",
     width: "max-content",
-    // Ensure this container expands to fit all rows
+    // Ensure this container expands to fit all rows - no height constraint
     height: "auto",
-    minHeight: 0,
   },
 
   head: {
