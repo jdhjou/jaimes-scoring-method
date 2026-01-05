@@ -859,7 +859,6 @@ export default function HomeClient() {
                 </div>
               );
             })}
-            </div>
           </div>
         </section>
       </div>
@@ -955,30 +954,27 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
     overflow: "hidden", // keep rounded corners
-    width: "100%",
-    maxWidth: "100%",
   },
 
   // actual horizontal scrolling happens here (inside the rounded container)
   tableScroll: {
     width: "100%",
     overflowX: "auto", // Horizontal scroll for columns
-    overflowY: "visible", // Let page handle vertical scrolling - don't constrain height
+    overflowY: "visible", // Allow content to expand vertically - page handles scrolling
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x pan-y", // Allow both horizontal and vertical scrolling
     msOverflowStyle: "-ms-autohiding-scrollbar",
     scrollbarWidth: "thin",
     position: "relative",
     overscrollBehaviorX: "contain",
-    // Ensure container expands to fit all content
-    display: "block",
   },
   
-  // Inner wrapper to ensure content width is recognized for scrolling
+  // Inner wrapper to ensure content width is recognized
   tableInner: {
-    display: "block",
-    minWidth: "800px", // Ensure minimum width wider than mobile viewport
+    display: "block", // Block display to allow vertical expansion
+    minWidth: "max-content",
     width: "max-content",
+    // No height constraint - let content determine height
   },
 
   head: {
