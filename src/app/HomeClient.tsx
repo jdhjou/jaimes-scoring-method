@@ -649,20 +649,21 @@ export default function HomeClient() {
         {/* TABLE (horizontally scrollable region) */}
         <section style={styles.table}>
           <div style={styles.tableScroll} role="region" aria-label="Scoring table">
-            <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
-              <div>#</div>
-              <div>Par</div>
-              <div>SI</div>
-              <div>Goal</div>
-              <div>Stk</div>
-              <div>Putts</div>
-              <div>Missed 6ft</div>
-              <div>Reached SD</div>
-              <div>Stk loss</div>
-              <div>Oopsies</div>
-            </div>
+            <div style={styles.tableInner}>
+              <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
+                <div>#</div>
+                <div>Par</div>
+                <div>SI</div>
+                <div>Goal</div>
+                <div>Stk</div>
+                <div>Putts</div>
+                <div>Missed 6ft</div>
+                <div>Reached SD</div>
+                <div>Stk loss</div>
+                <div>Oopsies</div>
+              </div>
 
-            {round.holes.slice(0, round.holesCount).map((h, i) => {
+              {round.holes.slice(0, round.holesCount).map((h, i) => {
               const allow = allowedShotsToSD(round.level, h);
               const tgt = targetAfterSD(h);
               const lost = holeStrokesLost(h, round.weights);
@@ -961,10 +962,18 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     WebkitOverflowScrolling: "touch",
-    touchAction: "pan-x pan-y", // allow both horizontal and vertical scrolling
+    touchAction: "pan-x", // prioritize horizontal scrolling for table
     msOverflowStyle: "-ms-autohiding-scrollbar",
     scrollbarWidth: "thin",
     position: "relative",
+    overscrollBehaviorX: "contain",
+  },
+  
+  // Inner wrapper to ensure content width is recognized
+  tableInner: {
+    display: "inline-block",
+    minWidth: "max-content",
+    width: "max-content",
   },
 
   head: {
@@ -974,7 +983,8 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 800,
     gap: 8,
     alignItems: "center",
-    minWidth: "max-content",
+    gridTemplateColumns: COLS,
+    width: "max-content",
   },
 
   row: {
@@ -983,7 +993,8 @@ const styles: Record<string, React.CSSProperties> = {
     borderTop: "1px solid rgba(255,255,255,0.08)",
     alignItems: "center",
     gap: 8,
-    minWidth: "max-content",
+    gridTemplateColumns: COLS,
+    width: "max-content",
   },
 
   cellNum: { fontWeight: 900 },
