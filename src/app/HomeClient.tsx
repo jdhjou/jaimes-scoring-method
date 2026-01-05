@@ -954,22 +954,26 @@ const styles: Record<string, React.CSSProperties> = {
   table: {
     border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
-    overflowX: "hidden", // keep rounded corners on sides
-    overflowY: "visible", // allow content to expand vertically
-    // Don't constrain height - let content determine it
+    overflow: "hidden", // keep rounded corners
+    // Don't set overflowX/overflowY separately - let the inner scroll container handle it
   },
 
   // actual horizontal scrolling happens here (inside the rounded container)
   tableScroll: {
     width: "100%",
     overflowX: "auto", // Horizontal scroll for columns
-    overflowY: "visible", // Explicitly set to visible to allow content expansion (required when overflowX is non-visible)
+    overflowY: "auto", // Allow vertical scrolling within container if needed
+    // Note: We use overflowY: "auto" instead of "visible" because "visible" doesn't work with overflowX: "auto"
+    // The container will expand to fit content, and scrollbars appear only if content exceeds viewport
     WebkitOverflowScrolling: "touch",
     touchAction: "pan-x pan-y", // Allow both horizontal and vertical scrolling
     msOverflowStyle: "-ms-autohiding-scrollbar",
     scrollbarWidth: "thin",
     position: "relative",
     overscrollBehaviorX: "contain",
+    // Ensure container expands to fit content height - don't constrain it
+    height: "auto",
+    maxHeight: "none",
   },
   
   // Inner wrapper to ensure content width is recognized
@@ -977,7 +981,9 @@ const styles: Record<string, React.CSSProperties> = {
     display: "block", // Block display to allow vertical expansion
     minWidth: "max-content",
     width: "max-content",
-    // No height constraint - let content determine height
+    // Ensure this container expands to fit all rows
+    height: "auto",
+    minHeight: 0,
   },
 
   head: {
