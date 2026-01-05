@@ -79,6 +79,7 @@ export default function HomeClient() {
   const hydrated = useRef(false);
   const loadingFromDb = useRef(false);
   const saveTimer = useRef<number | null>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
 
   const summary = useMemo(() => computeRoundSummary(round), [round]);
 
@@ -161,6 +162,48 @@ export default function HomeClient() {
       }
     })();
   }, [session?.user?.id, roundParam]);
+
+  // Maintain table scroll container height to prevent collapse
+  useEffect(() => {
+    if (!tableScrollRef.current) return;
+    
+    const updateHeight = () => {
+      const container = tableScrollRef.current;
+      if (!container) return;
+      
+      // Temporarily remove overflow to get natural height
+      const originalOverflowY = container.style.overflowY;
+      container.style.overflowY = "visible";
+      
+      // Get the natural height of the content
+      const content = container.firstElementChild;
+      if (content) {
+        const contentHeight = content.scrollHeight;
+        // Set min-height to prevent collapse
+        container.style.minHeight = `${contentHeight}px`;
+      }
+      
+      // Restore overflow
+      container.style.overflowY = originalOverflowY || "auto";
+    };
+    
+    // Update on mount and when round changes
+    const timeoutId = setTimeout(updateHeight, 0);
+    
+    // Use ResizeObserver to maintain height as content changes
+    const resizeObserver = new ResizeObserver(() => {
+      updateHeight();
+    });
+    
+    if (tableScrollRef.current.firstElementChild) {
+      resizeObserver.observe(tableScrollRef.current.firstElementChild);
+    }
+    
+    return () => {
+      clearTimeout(timeoutId);
+      resizeObserver.disconnect();
+    };
+  }, [round]);
 
   // Autosave to DB (debounced)
   useEffect(() => {
@@ -648,7 +691,7 @@ export default function HomeClient() {
 
         {/* TABLE (horizontally scrollable region) */}
         <section style={styles.table}>
-          <div style={styles.tableScroll} role="region" aria-label="Scoring table">
+          <div ref={tableScrollRef} style={styles.tableScroll} role="region" aria-label="Scoring table">
             <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
                 <div>#</div>
                 <div>Par</div>
