@@ -563,21 +563,83 @@ export default function HomeClient() {
         </section>
 
         <section style={styles.card}>
-          <h2 style={styles.h2}>How to use</h2>
+          <h2 style={styles.h2}>How This System Works</h2>
+          <div style={styles.explanationText}>
+            <p>
+              This app is built around one simple idea: <b>your score is the only thing that matters</b>. Traditional stats like fairways and GIR are helpful, but they don't always explain why you're shooting the scores you shoot. This system measures <b>strokes lost</b> instead — identifying where shots are actually costing you strokes relative to a realistic target for your skill level.
+            </p>
+            <p style={{ marginTop: 12 }}>
+              Every hole is broken into phases:
+            </p>
+            <ul style={styles.explanationList}>
+              <li><b>Tee / Long Game</b></li>
+              <li><b>Approach & Recovery</b></li>
+              <li><b>Putting</b></li>
+            </ul>
+            <p style={{ marginTop: 12 }}>
+              Instead of tracking every shot, you only record the information that directly affects scoring. Misses, duffs, lost balls, and poor putting are weighted more heavily than cosmetic stats. A green in regulation only matters if it results in a realistic chance to hole a putt.
+            </p>
+            <p style={{ marginTop: 12 }}>
+              Over time, the app shows clear trends — not just round summaries — so you can see what's improving, what's getting worse, and what's truly holding your scores back.
+            </p>
+          </div>
+
+          <h2 style={{ ...styles.h2, marginTop: 24 }}>How to Use the App</h2>
           <ol style={styles.ol}>
-            <li>Pick a template (or set Par + SI once, then save it).</li>
-            <li>
-              Check <b>Reached SD</b> if you got to scoring distance in ≤ the
-              shown shots for that hole.
+            <li style={{ marginBottom: 12 }}>
+              <b>Start a Round</b>
+              <ul style={{ ...styles.explanationList, marginTop: 6, marginLeft: 20 }}>
+                <li>Select a course (or use a saved template).</li>
+                <li>Choose your scoring level (Bogey Golf, Break 80, Scratch).</li>
+                <li>The app automatically sets realistic shot targets based on hole difficulty.</li>
+              </ul>
             </li>
-            <li>
-              Select <b>Strokes</b> and <b>Putts</b>.
+            <li style={{ marginBottom: 12 }}>
+              <b>Enter Hole Results</b>
+              <div style={{ marginTop: 6, marginLeft: 20 }}>
+                For each hole, record:
+                <ul style={{ ...styles.explanationList, marginTop: 6 }}>
+                  <li>Total strokes</li>
+                  <li>Putts</li>
+                  <li>Lost balls (each counts as 2 strokes lost)</li>
+                  <li>Any major mis-strikes (duffs, punch-outs, forced recoveries)</li>
+                </ul>
+                You do not need to log every shot — only what impacted your score.
+              </div>
             </li>
-            <li>
-              Track <b>Oopsies</b> counts. Lost balls are automatically{" "}
-              <b>×2 strokes lost</b>.
+            <li style={{ marginBottom: 12 }}>
+              <b>Smart Scoring Logic</b>
+              <ul style={{ ...styles.explanationList, marginTop: 6, marginLeft: 20 }}>
+                <li>Putting strokes lost are calculated as: <code style={styles.code}>max(0, putts − 2)</code></li>
+                <li>Once you reach your expected scoring distance, the hole is treated like a par-3 finish.</li>
+                <li>Greens, fringes, or short fairway positions count the same as long as the ball is puttable.</li>
+              </ul>
+            </li>
+            <li style={{ marginBottom: 12 }}>
+              <b>Review Your Results</b>
+              <div style={{ marginTop: 6, marginLeft: 20 }}>
+                After each round, you'll see:
+                <ul style={{ ...styles.explanationList, marginTop: 6 }}>
+                  <li>Total strokes lost</li>
+                  <li>Breakdown by tee shots, ball striking, short game, and putting</li>
+                  <li>Trends over time (lost balls, duffed shots, putting performance)</li>
+                </ul>
+                This makes it easy to answer: <b>"What would drop my score the fastest?"</b>
+              </div>
             </li>
           </ol>
+
+          <h2 style={{ ...styles.h2, marginTop: 24 }}>Why This Is Different</h2>
+          <div style={styles.explanationText}>
+            <ul style={styles.explanationList}>
+              <li><b>No vanity stats</b></li>
+              <li><b>No excessive shot tracking</b></li>
+              <li><b>No pretending a bad shot was "fine"</b></li>
+            </ul>
+            <p style={{ marginTop: 12 }}>
+              Just honest feedback, clear trends, and actionable insight — so practice time actually lowers your scores.
+            </p>
+          </div>
         </section>
 
         {/* TABLE (horizontally scrollable region) */}
@@ -783,6 +845,9 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#e6e8ee",
     padding: 16,
     overflowX: "hidden", // prevent page-level sideways drift on mobile
+    position: "relative",
+    width: "100%",
+    maxWidth: "100vw",
   },
   shell: { maxWidth: 1200, margin: "0 auto" },
 
@@ -869,7 +934,10 @@ const styles: Record<string, React.CSSProperties> = {
     overflowX: "auto",
     overflowY: "hidden",
     WebkitOverflowScrolling: "touch",
-    touchAction: "pan-x",
+    touchAction: "pan-x pan-y", // allow both horizontal and vertical scrolling
+    msOverflowStyle: "-ms-autohiding-scrollbar",
+    scrollbarWidth: "thin",
+    position: "relative",
   },
 
   head: {
@@ -974,6 +1042,27 @@ const styles: Record<string, React.CSSProperties> = {
   },
   smallNote: { fontSize: 12, opacity: 0.85, marginTop: 2, lineHeight: 1.35 },
   ol: { paddingLeft: 18, lineHeight: 1.55, margin: 0 },
+  explanationText: { 
+    fontSize: 14, 
+    lineHeight: 1.6, 
+    opacity: 0.92,
+    marginTop: 8,
+  },
+  explanationList: {
+    listStyle: "disc",
+    paddingLeft: 20,
+    marginTop: 8,
+    lineHeight: 1.6,
+    fontSize: 14,
+    opacity: 0.92,
+  },
+  code: {
+    background: "rgba(255,255,255,0.1)",
+    padding: "2px 6px",
+    borderRadius: 4,
+    fontFamily: "monospace",
+    fontSize: 13,
+  },
 
   selectCell: {
     width: "100%",

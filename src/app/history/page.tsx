@@ -401,7 +401,12 @@ const styles: Record<string, React.CSSProperties> = {
   metrics: { display: "flex", flexWrap: "wrap", gap: 12, marginTop: 8, fontSize: 12, opacity: 0.95 },
   empty: { fontSize: 13, opacity: 0.85 },
 
-  table: { border: "1px solid rgba(255,255,255,0.12)", borderRadius: 12, overflow: "hidden" },
+  table: { 
+    border: "1px solid rgba(255,255,255,0.12)", 
+    borderRadius: 12, 
+    overflow: "hidden",
+    WebkitOverflowScrolling: "touch",
+  },
   thead: {
     display: "grid",
     background: "rgba(0,0,0,0.35)",
