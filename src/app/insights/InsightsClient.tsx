@@ -30,6 +30,7 @@ type HoleRow = {
   stroke_index: number | null;
   strokes: number | null;
   putts: number | null;
+  missed_putts_6ft: number | null;
   reached_sd: boolean | null;
   oopsies: any | null; // expects { lostBall: number, bunker: number, duffed: number }
 };
@@ -38,6 +39,7 @@ type MetricKey =
   | "strokesLostTotal"
   | "toPar"
   | "puttsLostTotal"
+  | "missedPutts6ftTotal"
   | "sdPct"
   | "npirPct"
   | "p3Pct"
@@ -53,6 +55,7 @@ const METRICS: Array<{
   { key: "strokesLostTotal", title: "Strokes lost", subtitle: "Lower is better", better: "down" },
   { key: "toPar", title: "To Par", subtitle: "Lower is better", better: "down" },
   { key: "puttsLostTotal", title: "Putts lost", subtitle: "Lower is better", better: "down" },
+  { key: "missedPutts6ftTotal", title: "Missed putts 6ft", subtitle: "Lower is better", better: "down" },
   { key: "sdPct", title: "SD%", subtitle: "Higher is better", better: "up" },
   { key: "npirPct", title: "NPIR%", subtitle: "Lower is better (Not-Puttable-In-Regulation)", better: "down" },
   { key: "p3Pct", title: "Par-3%", subtitle: "Higher is better", better: "up" },
@@ -108,7 +111,7 @@ export default function InsightsClient() {
         // all holes for those rounds (single query)
         const { data: h, error: hErr } = await supabase
           .from("round_holes")
-          .select("round_id, hole_no, par, stroke_index, strokes, putts, reached_sd, oopsies")
+          .select("round_id, hole_no, par, stroke_index, strokes, putts, missed_putts_6ft, reached_sd, oopsies")
           .in("round_id", ids)
           .order("round_id", { ascending: true })
           .order("hole_no", { ascending: true });
@@ -156,6 +159,7 @@ export default function InsightsClient() {
             strokeIndex: (row.stroke_index as any) ?? holes[idx].strokeIndex,
             strokes: row.strokes ?? undefined,
             putts: row.putts ?? undefined,
+            missedPutts6ft: row.missed_putts_6ft ?? undefined,
             reachedSD: row.reached_sd ?? undefined,
             oopsies: (row.oopsies as any) ?? holes[idx].oopsies,
           };
@@ -199,6 +203,7 @@ export default function InsightsClient() {
       strokesLostTotal: [],
       toPar: [],
       puttsLostTotal: [],
+      missedPutts6ftTotal: [],
       sdPct: [],
       npirPct: [],
       p3Pct: [],
@@ -212,6 +217,7 @@ export default function InsightsClient() {
       pushIfFinite(out.strokesLostTotal, s?.strokesLostTotal);
       pushIfFinite(out.toPar, s?.toPar);
       pushIfFinite(out.puttsLostTotal, s?.puttsLostTotal);
+      pushIfFinite(out.missedPutts6ftTotal, s?.missedPutts6ftTotal);
       pushIfFinite(out.sdPct, s?.sdPct);
       pushIfFinite(out.npirPct, s?.npirPct);
       pushIfFinite(out.p3Pct, s?.p3Pct);

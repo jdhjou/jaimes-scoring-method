@@ -31,8 +31,8 @@ import {
   upsertRound,
 } from "@/lib/storage/remoteSupabase";
 
-// Added Goal column after SI
-const COLS = "34px 70px 70px 70px 90px 80px 260px 120px 1fr";
+// Added Goal column after SI, Missed 6ft after Putts
+const COLS = "34px 70px 70px 70px 90px 80px 90px 260px 120px 1fr";
 
 function defaultRound(holesCount: 9 | 18): RoundState {
   return {
@@ -204,6 +204,7 @@ export default function HomeClient() {
               strokeIndex: existing[i].strokeIndex,
               strokes: existing[i].strokes,
               putts: existing[i].putts,
+              missedPutts6ft: existing[i].missedPutts6ft,
               reachedSD: existing[i].reachedSD,
               oopsies: existing[i].oopsies,
             }
@@ -449,6 +450,9 @@ export default function HomeClient() {
                 <b>Putts lost:</b> {summary.puttsLostTotal}
               </span>
               <span>
+                <b>Missed 6ft:</b> {summary.missedPutts6ftTotal} ({summary.missedPutts6ftPct != null ? `${summary.missedPutts6ftPct}%` : "—"})
+              </span>
+              <span>
                 <b>Strokes lost:</b> {summary.strokesLostTotal}
               </span>
             </div>
@@ -652,6 +656,7 @@ export default function HomeClient() {
               <div>Goal</div>
               <div>Stk</div>
               <div>Putts</div>
+              <div>Missed 6ft</div>
               <div>Reached SD</div>
               <div>Stk loss</div>
               <div>Oopsies</div>
@@ -744,6 +749,28 @@ export default function HomeClient() {
                   >
                     <option value="">—</option>
                     {Array.from({ length: 11 }, (_, n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={h.missedPutts6ft ?? ""}
+                    onChange={(e) =>
+                      updateHole(i, {
+                        missedPutts6ft:
+                          e.target.value === ""
+                            ? undefined
+                            : Number(e.target.value),
+                      })
+                    }
+                    style={styles.selectCell}
+                    disabled={isCompleted}
+                    title="Number of missed putts within 6 feet"
+                  >
+                    <option value="">—</option>
+                    {Array.from({ length: 6 }, (_, n) => (
                       <option key={n} value={n}>
                         {n}
                       </option>

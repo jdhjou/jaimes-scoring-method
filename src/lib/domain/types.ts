@@ -12,6 +12,7 @@ export type Hole = {
 
   strokes?: number;
   putts?: number;
+  missedPutts6ft?: number; // number of missed putts within 6 feet
 
   // SD checkbox (computed goal by Level + SI)
   reachedSD?: boolean;
@@ -64,6 +65,10 @@ export type RoundSummary = {
 
   avgPutts?: number;
   puttsLostTotal: number;
+
+  // Missed putts within 6 feet
+  missedPutts6ftTotal: number;
+  missedPutts6ftPct?: number; // percentage of holes with missed putts within 6ft
 
   strokesLostTotal: number;
 };

@@ -64,6 +64,10 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
   let puttsTotal = 0;
   let puttsLostTotal = 0;
 
+  let missedPutts6ftTotal = 0;
+  let holesWithPutts = 0;
+  let holesWithMissedPutts6ft = 0;
+
   let strokesLostTotal = 0;
 
   for (const h of used) {
@@ -109,6 +113,15 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
       puttsEntered += 1;
       puttsTotal += h.putts;
       puttsLostTotal += puttingLost(h.putts);
+      holesWithPutts += 1;
+    }
+
+    // Track missed putts within 6ft
+    if (h.missedPutts6ft != null && h.missedPutts6ft > 0) {
+      missedPutts6ftTotal += h.missedPutts6ft;
+      if (h.putts != null) {
+        holesWithMissedPutts6ft += 1;
+      }
     }
   }
 
@@ -121,6 +134,10 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
 
   const avgPutts =
     puttsEntered ? round1(puttsTotal / puttsEntered) : undefined;
+
+  const missedPutts6ftPct = holesWithPutts
+    ? Math.round((holesWithMissedPutts6ft / holesWithPutts) * 100)
+    : undefined;
 
   return {
     strokes,
@@ -140,6 +157,9 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
 
     avgPutts,
     puttsLostTotal: round1(puttsLostTotal),
+
+    missedPutts6ftTotal,
+    missedPutts6ftPct,
 
     strokesLostTotal: round1(strokesLostTotal),
   };

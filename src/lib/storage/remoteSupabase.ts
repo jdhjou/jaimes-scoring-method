@@ -98,6 +98,8 @@ async function upsertRoundSummaryRow(
     total_strokes_lost: Number(s.strokesLostTotal ?? 0),
     putting_lost: Number(s.puttsLostTotal ?? 0),
     lost_ball_penalty: Number(lostBallPenaltyTotal(round)),
+    missed_putts_6ft_total: Number(s.missedPutts6ftTotal ?? 0),
+    missed_putts_6ft_pct: s.missedPutts6ftPct ?? null,
 
     level: round.level,
     scoring_distance: round.scoringDistance,
@@ -253,6 +255,7 @@ export async function fetchLatestRound(): Promise<{
       strokeIndex: h.stroke_index,
       strokes: h.strokes ?? undefined,
       putts: h.putts ?? undefined,
+      missedPutts6ft: (h as any).missed_putts_6ft ?? undefined,
       reachedSD: h.reached_sd ?? undefined,
       oopsies: h.oopsies,
     })),
@@ -299,6 +302,7 @@ export async function createRound(
     stroke_index: h.strokeIndex,
     strokes: h.strokes ?? null,
     putts: h.putts ?? null,
+    missed_putts_6ft: h.missedPutts6ft ?? null,
     reached_sd: h.reachedSD ?? null,
     oopsies: h.oopsies,
   }));
@@ -376,6 +380,7 @@ export async function upsertRound(
       stroke_index: h.strokeIndex,
       strokes: h.strokes ?? null,
       putts: h.putts ?? null,
+      missed_putts_6ft: h.missedPutts6ft ?? null,
       reached_sd: h.reachedSD ?? null,
       oopsies: h.oopsies,
     });
