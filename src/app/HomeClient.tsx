@@ -171,24 +171,39 @@ export default function HomeClient() {
       const container = tableScrollRef.current;
       if (!container) return;
       
-      // Temporarily remove overflow to get natural height
-      const originalOverflowY = container.style.overflowY;
-      container.style.overflowY = "visible";
+      // Get the content wrapper (tableContent)
+      const content = container.firstElementChild as HTMLElement;
+      if (!content) return;
       
-      // Get the natural height of the content
-      const content = container.firstElementChild;
-      if (content) {
-        const contentHeight = content.scrollHeight;
-        // Set min-height to prevent collapse
-        container.style.minHeight = `${contentHeight}px`;
-      }
+      // Calculate minimum height based on number of rows
+      // Header is ~50px, each row is ~50px, add padding
+      const headerHeight = 50;
+      const rowHeight = 50;
+      const estimatedHeight = headerHeight + (round.holesCount * rowHeight) + 20; // 20px padding
+      
+      // Also try to measure actual height
+      // Temporarily remove overflow to get natural height
+      const originalOverflow = container.style.overflow;
+      container.style.overflow = "visible";
+      
+      // Force a reflow
+      void content.offsetHeight;
+      
+      const measuredHeight = content.scrollHeight;
       
       // Restore overflow
-      container.style.overflowY = originalOverflowY || "auto";
+      container.style.overflow = originalOverflow || "auto";
+      
+      // Use the larger of estimated or measured height, with a minimum
+      const finalHeight = Math.max(estimatedHeight, measuredHeight, 200);
+      container.style.minHeight = `${finalHeight}px`;
     };
     
-    // Update on mount and when round changes
-    const timeoutId = setTimeout(updateHeight, 0);
+    // Update immediately and after delays to catch async rendering
+    updateHeight();
+    const timeoutId1 = setTimeout(updateHeight, 0);
+    const timeoutId2 = setTimeout(updateHeight, 50);
+    const timeoutId3 = setTimeout(updateHeight, 200);
     
     // Use ResizeObserver to maintain height as content changes
     const resizeObserver = new ResizeObserver(() => {
@@ -200,10 +215,12 @@ export default function HomeClient() {
     }
     
     return () => {
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
       resizeObserver.disconnect();
     };
-  }, [round]);
+  }, [round, round.holesCount]);
 
   // Autosave to DB (debounced)
   useEffect(() => {
@@ -692,7 +709,8 @@ export default function HomeClient() {
         {/* TABLE (horizontally scrollable region) */}
         <section style={styles.table}>
           <div ref={tableScrollRef} style={styles.tableScroll} role="region" aria-label="Scoring table">
-            <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
+            <div style={styles.tableContent}>
+              <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
                 <div>#</div>
                 <div>Par</div>
                 <div>SI</div>
@@ -901,6 +919,7 @@ export default function HomeClient() {
                 </div>
               );
             })}
+            </div>
           </div>
         </section>
       </div>
@@ -1014,6 +1033,13 @@ const styles: Record<string, React.CSSProperties> = {
     overscrollBehaviorX: "contain",
     // Prevent collapse - ensure content width is recognized
     display: "block",
+  },
+  
+  // Wrapper for all table content (head + rows) to ensure proper height measurement
+  tableContent: {
+    display: "block",
+    minWidth: "max-content",
+    width: "max-content",
   },
 
   head: {
