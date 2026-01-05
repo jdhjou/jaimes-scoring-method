@@ -38,7 +38,7 @@ export async function ensureUsername(userId: string, email: string) {
     // Write it (creates row if missing)
     const { error: writeErr } = await supabase
       .from("profiles")
-      .upsert({ id: userId, username: candidate }, { onConflict: "id" });
+      .upsert({ id: userId, username: candidate, display_name: candidate }, { onConflict: "id" });
 
     if (!writeErr) return candidate;
 
