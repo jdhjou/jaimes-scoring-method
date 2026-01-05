@@ -649,8 +649,7 @@ export default function HomeClient() {
         {/* TABLE (horizontally scrollable region) */}
         <section style={styles.table}>
           <div style={styles.tableScroll} role="region" aria-label="Scoring table">
-            <div style={styles.tableInner}>
-              <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
+            <div style={{ ...styles.head, gridTemplateColumns: COLS }}>
                 <div>#</div>
                 <div>Par</div>
                 <div>SI</div>
@@ -859,7 +858,6 @@ export default function HomeClient() {
                 </div>
               );
             })}
-            </div>
           </div>
         </section>
       </div>
@@ -971,18 +969,8 @@ const styles: Record<string, React.CSSProperties> = {
     scrollbarWidth: "thin",
     position: "relative",
     overscrollBehaviorX: "contain",
-    // Ensure container expands to fit content - use fit-content to prevent collapse
-    height: "fit-content",
-    minHeight: "fit-content",
-  },
-  
-  // Inner wrapper to ensure content width is recognized
-  tableInner: {
-    display: "block", // Block display preserves grid layout behavior
-    minWidth: "max-content",
-    width: "max-content",
-    // Ensure this container expands to fit all rows - no height constraint
-    height: "auto",
+    // Prevent collapse - ensure content width is recognized
+    display: "block",
   },
 
   head: {
@@ -1004,6 +992,7 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
     gridTemplateColumns: COLS,
     width: "max-content",
+    minWidth: "max-content", // Prevent collapse
   },
 
   cellNum: { fontWeight: 900 },
