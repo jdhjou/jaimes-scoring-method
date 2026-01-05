@@ -955,25 +955,29 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid rgba(255,255,255,0.12)",
     borderRadius: 12,
     overflow: "hidden", // keep rounded corners
+    width: "100%",
+    maxWidth: "100%",
   },
 
   // actual horizontal scrolling happens here (inside the rounded container)
   tableScroll: {
     width: "100%",
-    overflowX: "auto",
-    overflowY: "hidden",
+    overflowX: "auto", // Horizontal scroll for columns
+    overflowY: "visible", // Let page handle vertical scrolling - don't constrain height
     WebkitOverflowScrolling: "touch",
-    touchAction: "pan-x", // prioritize horizontal scrolling for table
+    touchAction: "pan-x pan-y", // Allow both horizontal and vertical scrolling
     msOverflowStyle: "-ms-autohiding-scrollbar",
     scrollbarWidth: "thin",
     position: "relative",
     overscrollBehaviorX: "contain",
+    // Ensure container expands to fit all content
+    display: "block",
   },
   
-  // Inner wrapper to ensure content width is recognized
+  // Inner wrapper to ensure content width is recognized for scrolling
   tableInner: {
-    display: "inline-block",
-    minWidth: "max-content",
+    display: "block",
+    minWidth: "800px", // Ensure minimum width wider than mobile viewport
     width: "max-content",
   },
 
