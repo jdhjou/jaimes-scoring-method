@@ -29,7 +29,7 @@ export async function fetchRoundById(roundId: string): Promise<{
   // 2) holes
   const { data: holesRows, error: hErr } = await sb
     .from("round_holes")
-    .select("hole_no, par, stroke_index, strokes, putts, reached_sd, oopsies")
+    .select("hole_no, par, stroke_index, strokes, putts, missed_putts_6ft, tee_shot_result, reached_sd, oopsies")
     .eq("round_id", roundId)
     .order("hole_no", { ascending: true });
 
@@ -49,6 +49,8 @@ export async function fetchRoundById(roundId: string): Promise<{
       strokeIndex: row.stroke_index ?? holes[idx].strokeIndex,
       strokes: row.strokes ?? undefined,
       putts: row.putts ?? undefined,
+      missedPutts6ft: (row as any).missed_putts_6ft ?? undefined,
+      teeShotResult: (row as any).tee_shot_result ?? undefined,
       reachedSD: row.reached_sd ?? undefined,
       oopsies: (row.oopsies as any) ?? holes[idx].oopsies,
     };
@@ -100,6 +102,9 @@ async function upsertRoundSummaryRow(
     lost_ball_penalty: Number(lostBallPenaltyTotal(round)),
     missed_putts_6ft_total: Number(s.missedPutts6ftTotal ?? 0),
     missed_putts_6ft_pct: s.missedPutts6ftPct ?? null,
+    tee_shots_fairway_total: Number(s.teeShotsFairwayTotal ?? 0),
+    tee_shots_trouble_total: Number(s.teeShotsTroubleTotal ?? 0),
+    tee_shots_fairway_pct: s.teeShotsFairwayPct ?? null,
 
     level: round.level,
     scoring_distance: round.scoringDistance,
@@ -256,6 +261,7 @@ export async function fetchLatestRound(): Promise<{
       strokes: h.strokes ?? undefined,
       putts: h.putts ?? undefined,
       missedPutts6ft: (h as any).missed_putts_6ft ?? undefined,
+      teeShotResult: (h as any).tee_shot_result ?? undefined,
       reachedSD: h.reached_sd ?? undefined,
       oopsies: h.oopsies,
     })),
@@ -302,7 +308,8 @@ export async function createRound(
     stroke_index: h.strokeIndex,
     strokes: h.strokes ?? null,
     putts: h.putts ?? null,
-    missed_putts_6ft: h.missedPutts6ft ?? null,
+    missed_putts_6ft: h.missedPutts6ft ?? 0,
+    tee_shot_result: h.teeShotResult ?? null,
     reached_sd: h.reachedSD ?? null,
     oopsies: h.oopsies,
   }));
@@ -332,6 +339,9 @@ async function upsertRoundSummaryRow(
     total_strokes_lost: Number(s.totalStrokesLost ?? s.total_strokes_lost ?? 0),
     putting_lost: Number(s.puttingLost ?? s.putting_lost ?? 0),
     lost_ball_penalty: Number(s.lostBallPenalty ?? s.lost_ball_penalty ?? 0),
+    tee_shots_fairway_total: Number(s.teeShotsFairwayTotal ?? s.tee_shots_fairway_total ?? 0),
+    tee_shots_trouble_total: Number(s.teeShotsTroubleTotal ?? s.tee_shots_trouble_total ?? 0),
+    tee_shots_fairway_pct: s.teeShotsFairwayPct ?? s.tee_shots_fairway_pct ?? null,
 
     level: round.level,
     scoring_distance: round.scoringDistance,
@@ -380,7 +390,8 @@ export async function upsertRound(
       stroke_index: h.strokeIndex,
       strokes: h.strokes ?? null,
       putts: h.putts ?? null,
-      missed_putts_6ft: h.missedPutts6ft ?? null,
+      missed_putts_6ft: h.missedPutts6ft ?? 0,
+      tee_shot_result: h.teeShotResult ?? null,
       reached_sd: h.reachedSD ?? null,
       oopsies: h.oopsies,
     });
@@ -413,6 +424,9 @@ async function upsertRoundSummaryRow(
     total_strokes_lost: Number(s.totalStrokesLost ?? s.total_strokes_lost ?? 0),
     putting_lost: Number(s.puttingLost ?? s.putting_lost ?? 0),
     lost_ball_penalty: Number(s.lostBallPenalty ?? s.lost_ball_penalty ?? 0),
+    tee_shots_fairway_total: Number(s.teeShotsFairwayTotal ?? s.tee_shots_fairway_total ?? 0),
+    tee_shots_trouble_total: Number(s.teeShotsTroubleTotal ?? s.tee_shots_trouble_total ?? 0),
+    tee_shots_fairway_pct: s.teeShotsFairwayPct ?? s.tee_shots_fairway_pct ?? null,
 
     level: round.level,
     scoring_distance: round.scoringDistance,

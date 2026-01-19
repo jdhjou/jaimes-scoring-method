@@ -32,7 +32,7 @@ import {
 } from "@/lib/storage/remoteSupabase";
 
 // Added Goal column after SI, Missed 6ft after Putts
-const COLS = "34px 70px 70px 70px 90px 80px 90px 260px 120px 1fr";
+const COLS = "34px 70px 70px 70px 90px 80px 90px 110px 260px 120px 1fr";
 
 function defaultRound(holesCount: 9 | 18): RoundState {
   return {
@@ -265,6 +265,7 @@ export default function HomeClient() {
               strokes: existing[i].strokes,
               putts: existing[i].putts,
               missedPutts6ft: existing[i].missedPutts6ft,
+              teeShotResult: existing[i].teeShotResult,
               reachedSD: existing[i].reachedSD,
               oopsies: existing[i].oopsies,
             }
@@ -513,6 +514,9 @@ export default function HomeClient() {
                 <b>Missed 6ft:</b> {summary.missedPutts6ftTotal} ({summary.missedPutts6ftPct != null ? `${summary.missedPutts6ftPct}%` : "—"})
               </span>
               <span>
+                <b>Tee shots:</b> {summary.teeShotsFairwayTotal}/{summary.teeShotsTroubleTotal} ({summary.teeShotsFairwayPct != null ? `${summary.teeShotsFairwayPct}%` : "—"})
+              </span>
+              <span>
                 <b>Strokes lost:</b> {summary.strokesLostTotal}
               </span>
             </div>
@@ -718,6 +722,7 @@ export default function HomeClient() {
                 <div>Stk</div>
                 <div>Putts</div>
                 <div>Missed 6ft</div>
+                <div>Tee shot</div>
                 <div>Reached SD</div>
                 <div>Stk loss</div>
                 <div>Oopsies</div>
@@ -836,6 +841,25 @@ export default function HomeClient() {
                         {n}
                       </option>
                     ))}
+                  </select>
+
+                  <select
+                    value={h.teeShotResult ?? ""}
+                    onChange={(e) =>
+                      updateHole(i, {
+                        teeShotResult:
+                          e.target.value === ""
+                            ? undefined
+                            : (e.target.value as "fairway" | "trouble"),
+                      })
+                    }
+                    style={styles.selectCell}
+                    disabled={isCompleted || h.par === 3}
+                    title={h.par === 3 ? "Not tracked on par 3s" : "Tee shot result"}
+                  >
+                    <option value="">—</option>
+                    <option value="fairway">Fairway</option>
+                    <option value="trouble">Trouble</option>
                   </select>
 
                   <div style={styles.sdCell}>

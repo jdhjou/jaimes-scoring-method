@@ -5,6 +5,8 @@ export type Weights = {
   duffed: number;
 };
 
+export type TeeShotResult = "fairway" | "trouble";
+
 export type Hole = {
   n: number;
   par: 3 | 4 | 5;
@@ -13,6 +15,7 @@ export type Hole = {
   strokes?: number;
   putts?: number;
   missedPutts6ft?: number; // number of missed putts within 6 feet
+  teeShotResult?: TeeShotResult; // par-4/5 tee shot outcome
 
   // SD checkbox (computed goal by Level + SI)
   reachedSD?: boolean;
@@ -69,6 +72,11 @@ export type RoundSummary = {
   // Missed putts within 6 feet
   missedPutts6ftTotal: number;
   missedPutts6ftPct?: number; // percentage of holes with missed putts within 6ft
+
+  // Tee shots (par 4/5 only)
+  teeShotsFairwayTotal: number;
+  teeShotsTroubleTotal: number;
+  teeShotsFairwayPct?: number; // fairway / (fairway + trouble)
 
   strokesLostTotal: number;
 };

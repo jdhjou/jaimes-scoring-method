@@ -9,6 +9,7 @@ export function makeDefaultHoles(count: 9 | 18): Hole[] {
     strokes: undefined,
     putts: undefined,
     missedPutts6ft: undefined,
+    teeShotResult: undefined,
     reachedSD: undefined,
     oopsies: { lostBall: 0, bunker: 0, duffed: 0 },
   }));
@@ -41,6 +42,7 @@ export function applyTemplateToNewRound(template: CourseTemplate, baseRound: Omi
       strokes: undefined,
       putts: undefined,
       missedPutts6ft: undefined,
+      teeShotResult: undefined,
       reachedSD: undefined,
       oopsies: { lostBall: 0, bunker: 0, duffed: 0 },
     };
@@ -59,6 +61,7 @@ export function resetRoundKeepCourse(round: RoundState): RoundState {
       strokes: undefined,
       putts: undefined,
       missedPutts6ft: undefined,
+      teeShotResult: undefined,
       reachedSD: undefined,
       oopsies: { lostBall: 0, bunker: 0, duffed: 0 },
     })),

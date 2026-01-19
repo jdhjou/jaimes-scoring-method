@@ -27,6 +27,9 @@ type RoundSummaryRow = {
   putts_lost_total?: number | null;
   missed_putts_6ft_total?: number | null;
   missed_putts_6ft_pct?: number | null;
+  tee_shots_fairway_total?: number | null;
+  tee_shots_trouble_total?: number | null;
+  tee_shots_fairway_pct?: number | null;
   strokes_lost_total?: number | null;
 };
 
@@ -65,7 +68,7 @@ export default function HistoryPage() {
     // summaries are optional; ignore if missing
     const { data: s, error: sErr } = await supabase
       .from("round_summaries")
-      .select("round_id, strokes, to_par, sd_pct, npir_pct, p3_pct, putts_lost_total, missed_putts_6ft_total, missed_putts_6ft_pct, strokes_lost_total")
+      .select("round_id, strokes, to_par, sd_pct, npir_pct, p3_pct, putts_lost_total, missed_putts_6ft_total, missed_putts_6ft_pct, tee_shots_fairway_total, tee_shots_trouble_total, tee_shots_fairway_pct, strokes_lost_total")
       .in("round_id", finishedIds);
 
     if (sErr) {
@@ -333,6 +336,7 @@ export default function HistoryPage() {
                         <span><b>P3%:</b> {fmtPct(s.p3_pct)}</span>
                         <span><b>Putts lost:</b> {s.putts_lost_total ?? "—"}</span>
                         <span><b>Missed 6ft:</b> {s.missed_putts_6ft_total ?? "—"} ({fmtPct(s.missed_putts_6ft_pct)})</span>
+                        <span><b>Tee shots:</b> {s.tee_shots_fairway_total ?? "—"}/{s.tee_shots_trouble_total ?? "—"} ({fmtPct(s.tee_shots_fairway_pct)})</span>
                         <span><b>Strokes lost:</b> {s.strokes_lost_total ?? "—"}</span>
                       </div>
                     )}

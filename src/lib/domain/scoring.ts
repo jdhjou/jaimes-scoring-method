@@ -68,6 +68,9 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
   let holesWithPutts = 0;
   let holesWithMissedPutts6ft = 0;
 
+  let teeShotsFairwayTotal = 0;
+  let teeShotsTroubleTotal = 0;
+
   let strokesLostTotal = 0;
 
   for (const h of used) {
@@ -123,6 +126,12 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
         holesWithMissedPutts6ft += 1;
       }
     }
+
+    // Tee shot result (par 4/5 only)
+    if (h.par !== 3) {
+      if (h.teeShotResult === "fairway") teeShotsFairwayTotal += 1;
+      if (h.teeShotResult === "trouble") teeShotsTroubleTotal += 1;
+    }
   }
 
   const strokes = holesWithStrokes ? totalStrokes : undefined;
@@ -137,6 +146,11 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
 
   const missedPutts6ftPct = holesWithPutts
     ? Math.round((holesWithMissedPutts6ft / holesWithPutts) * 100)
+    : undefined;
+
+  const teeShotsRecorded = teeShotsFairwayTotal + teeShotsTroubleTotal;
+  const teeShotsFairwayPct = teeShotsRecorded
+    ? Math.round((teeShotsFairwayTotal / teeShotsRecorded) * 100)
     : undefined;
 
   return {
@@ -160,6 +174,10 @@ export function computeRoundSummary(round: RoundState): RoundSummary {
 
     missedPutts6ftTotal,
     missedPutts6ftPct,
+
+    teeShotsFairwayTotal,
+    teeShotsTroubleTotal,
+    teeShotsFairwayPct,
 
     strokesLostTotal: round1(strokesLostTotal),
   };
